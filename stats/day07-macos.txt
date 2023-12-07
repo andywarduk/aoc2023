@@ -1,0 +1,29 @@
+Part 1: 251545216
+Part 2: 250384185
+        0.09 real         0.03 user         0.00 sys
+             1359872  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                 197  page reclaims
+                   1  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                   7  involuntary context switches
+           449471983  instructions retired
+           100647042  cycles elapsed
+             1000000  peak memory footprint
+------------------------------------------
+Darwin 23.0.0 Darwin Kernel Version 23.0.0: Fri Sep 15 14:42:57 PDT 2023; root:xnu-10002.1.13~1/RELEASE_ARM64_T8112 arm64 arm
+rustc 1.76.0-nightly (b10cfcd65 2023-11-29)
+binary: rustc
+commit-hash: b10cfcd65fd7f7b1ab9beb34798b2108de003452
+commit-date: 2023-11-29
+host: aarch64-apple-darwin
+release: 1.76.0-nightly
+LLVM version: 17.0.5

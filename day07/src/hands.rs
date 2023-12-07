@@ -155,7 +155,7 @@ impl HandStrength {
 
         // Iterate cards
         for c in CARDSP2 {
-            if c == 'J' {
+            if c == 'J' || !cards.contains(&c) {
                 continue;
             }
 

@@ -76,20 +76,41 @@ fn part2(dirs: &[Dir], loc_map: &HashMap<String, (String, String)>) -> u64 {
         .collect::<Vec<u64>>();
 
     // Calculate the LCM of each repeat cycle
-    let steps = repeat_cycle.iter().skip(1).fold(repeat_cycle[0], |l1, r1| {
-        let mut l = l1;
-        let mut r = *r1;
-
-        loop {
-            match l.cmp(&r) {
-                std::cmp::Ordering::Equal => break l,
-                std::cmp::Ordering::Less => l += l1,
-                std::cmp::Ordering::Greater => r += r1,
-            }
-        }
-    });
+    let steps = repeat_cycle
+        .iter()
+        .skip(1)
+        .fold(repeat_cycle[0], |l, r| (l * r) / gcd(l, *r));
 
     steps
+}
+
+// From https://en.wikipedia.org/wiki/Binary_GCD_algorithm
+pub fn gcd(mut u: u64, mut v: u64) -> u64 {
+    let ored = u | v;
+
+    if u == 0 || v == 0 {
+        return ored;
+    }
+
+    // 'trailing_zeros' quickly counts a binary number's trailing zeros, giving its prime factorization's exponent on two
+    let gcd_exponent_on_two = ored.trailing_zeros();
+
+    // `>>=` divides the left by two to the power of the right, storing that in the left variable
+    // `u` divided by its prime factorization's power of two turns it odd
+    u >>= u.trailing_zeros();
+    v >>= v.trailing_zeros();
+
+    while u != v {
+        if u < v {
+            // Swap the variables' values with each other.
+            core::mem::swap(&mut u, &mut v);
+        }
+        u -= v;
+        u >>= u.trailing_zeros();
+    }
+
+    // `<<` multiplies the left by two to the power of the right.
+    u << gcd_exponent_on_two
 }
 
 enum Dir {

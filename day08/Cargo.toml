@@ -1,10 +1,9 @@
 [package]
-name = "aoc"
+name = "day08"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[target.'cfg(not(miri))'.dependencies]
-memmap2 = "0.9.0"
-gif = "0.12.0"
+[dependencies]
+aoc = { path = "../aoc" }

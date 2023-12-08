@@ -75,13 +75,13 @@ fn part2(dirs: &[Dir], loc_map: &HashMap<String, (String, String)>) -> u64 {
         })
         .collect::<Vec<u64>>();
 
-    // Calculate the LCM of each repeat cycle
-    let steps = repeat_cycle
-        .iter()
-        .skip(1)
-        .fold(repeat_cycle[0], |l, r| (l * r) / gcd(l, *r));
+    // Calculate the LCM of the repeat cycles
+    repeat_cycle.into_iter().reduce(lcm).unwrap()
+}
 
-    steps
+// From https://en.wikipedia.org/wiki/Least_common_multiple
+fn lcm(l: u64, r: u64) -> u64 {
+    (l * r) / gcd(l, r)
 }
 
 // From https://en.wikipedia.org/wiki/Binary_GCD_algorithm
@@ -109,7 +109,7 @@ pub fn gcd(mut u: u64, mut v: u64) -> u64 {
         u >>= u.trailing_zeros();
     }
 
-    // `<<` multiplies the left by two to the power of the right.
+    // `<<` multiplies the left by two to the power of the right
     u << gcd_exponent_on_two
 }
 

@@ -24,12 +24,7 @@ fn part1(input: &[InputEnt]) -> i64 {
 }
 
 fn calc_diffs_right(v1: &[i64]) -> i64 {
-    let v2 = v1
-        .iter()
-        .enumerate()
-        .skip(1)
-        .map(|(i, v)| v - v1[i - 1])
-        .collect::<Vec<i64>>();
+    let v2 = v1.windows(2).map(|x| x[1] - x[0]).collect::<Vec<i64>>();
 
     if v2.iter().any(|v| *v != 0) {
         v2[v2.len() - 1] + calc_diffs_right(&v2)
@@ -49,12 +44,7 @@ fn part2(input: &[InputEnt]) -> i64 {
 }
 
 fn calc_diffs_left(v1: &[i64]) -> i64 {
-    let v2 = v1
-        .iter()
-        .enumerate()
-        .skip(1)
-        .map(|(i, v)| v - v1[i - 1])
-        .collect::<Vec<i64>>();
+    let v2 = v1.windows(2).map(|x| x[1] - x[0]).collect::<Vec<i64>>();
 
     if v2.iter().any(|v| *v != 0) {
         v2[0] - calc_diffs_left(&v2)

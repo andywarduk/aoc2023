@@ -77,7 +77,6 @@ fn start_dir(map: &[MapRow], x: usize, y: usize) -> Dir {
 fn part1(map: &[MapRow], start_x: usize, start_y: usize) -> u64 {
     let mut x = start_x;
     let mut y = start_y;
-
     let mut dir_from = start_dir(map, x, y);
 
     // Walk the loop
@@ -106,7 +105,6 @@ fn part1(map: &[MapRow], start_x: usize, start_y: usize) -> u64 {
 fn part2(map: &[MapRow], start_x: usize, start_y: usize) -> u64 {
     let mut x = start_x;
     let mut y = start_y;
-
     let mut dir_from = start_dir(map, x, y);
 
     // Walk the loop
@@ -129,60 +127,52 @@ fn part2(map: &[MapRow], start_x: usize, start_y: usize) -> u64 {
         }
     }
 
-    map.iter().enumerate().fold(0, |acc, (y, l)| {
-        let mut wall_count = 0;
-        let mut in_dir = None;
+    // Called when a pipe is being crossed
+    let cross_pipe = |pipe_count: &mut usize, in_dir: &mut Option<Dir>| {
+        *pipe_count += 1;
+        *in_dir = None
+    };
 
-        l.iter().enumerate().fold(acc, |acc, (x, c)| {
-            acc + if visited.contains(&(x, y)) {
+    // Called when coming in in a given direction
+    let in_out = |dir: Dir, pipe_count: &mut usize, in_dir: &mut Option<Dir>| match in_dir {
+        Some(cur_dir) => {
+            if *cur_dir == dir {
+                // In and out same direction
+                *in_dir = None
+            } else {
+                // In and out in opposite directions
+                cross_pipe(pipe_count, in_dir)
+            }
+        }
+        None => {
+            // In in a direction
+            *in_dir = Some(dir)
+        }
+    };
+
+    // Find contained squares
+    map.iter().enumerate().fold(0, |acc, (y, l)| {
+        let mut pipe_count = 0;
+        let mut in_dir = None;
+        let mut contained = 0;
+
+        for (x, c) in l.iter().enumerate() {
+            // Square part of the visited pipe?
+            if visited.contains(&(x, y)) {
                 match c {
-                    Pipe::NS => {
-                        wall_count += 1;
-                        in_dir = None
-                    }
+                    Pipe::NS => cross_pipe(&mut pipe_count, &mut in_dir),
+                    Pipe::NE | Pipe::NW => in_out(Dir::N, &mut pipe_count, &mut in_dir),
+                    Pipe::SW | Pipe::SE => in_out(Dir::S, &mut pipe_count, &mut in_dir),
                     Pipe::EW => (),
-                    Pipe::NE => match in_dir {
-                        Some(Dir::S) => {
-                            wall_count += 1;
-                            in_dir = None
-                        }
-                        Some(Dir::N) => in_dir = None,
-                        _ => in_dir = Some(Dir::N),
-                    },
-                    Pipe::NW => match in_dir {
-                        Some(Dir::S) => {
-                            wall_count += 1;
-                            in_dir = None
-                        }
-                        Some(Dir::N) => in_dir = None,
-                        _ => in_dir = Some(Dir::N),
-                    },
-                    Pipe::SW => match in_dir {
-                        Some(Dir::N) => {
-                            wall_count += 1;
-                            in_dir = None
-                        }
-                        Some(Dir::S) => in_dir = None,
-                        _ => in_dir = Some(Dir::S),
-                    },
-                    Pipe::SE => match in_dir {
-                        Some(Dir::N) => {
-                            wall_count += 1;
-                            in_dir = None
-                        }
-                        Some(Dir::S) => in_dir = None,
-                        _ => in_dir = Some(Dir::S),
-                    },
                     _ => panic!("Invalid pipe"),
                 }
-
-                0
-            } else if wall_count & 0x01 == 0x01 {
-                1
-            } else {
-                0
+            } else if pipe_count & 1 == 1 {
+                // Odd number of pipes crossed means this unvisited square is inside the loop
+                contained += 1;
             }
-        })
+        }
+
+        acc + contained
     })
 }
 

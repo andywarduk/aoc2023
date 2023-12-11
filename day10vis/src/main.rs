@@ -85,7 +85,7 @@ fn visualise(map: &[MapRow], start_x: usize, start_y: usize) -> Result<(), Box<d
         .html_colors(&["seagreen", "gold", "deeppink"])
         .build()?;
 
-    for c in 0..RANGE_COLS {
+    for c in 0..=RANGE_COLS {
         let col = grad.at(c as f64 / RANGE_COLS as f64).to_rgba8();
         palette.push([col[0], col[1], col[2]]);
     }

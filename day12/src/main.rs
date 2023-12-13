@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 
 use aoc::input::parse_input_vec;
 
@@ -14,16 +14,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn part1(input: &[InputEnt]) -> u64 {
-    let mut result = 0;
-
-    for line in input {
-        result += piece_solutions(&line.pieces, &line.clues);
-    }
-
-    result
+    // Process input
+    input
+        .iter()
+        .map(|line| piece_solutions(&line.pieces, &line.clues))
+        .sum()
 }
 
 fn part2(input: &[InputEnt]) -> u64 {
+    // Expand inputs 5-fold
     let input = input
         .iter()
         .map(|InputEnt { pieces, clues }| {
@@ -40,6 +39,7 @@ fn part2(input: &[InputEnt]) -> u64 {
                     new_clues.push(*c);
                 }
             }
+            new_pieces.pop();
 
             InputEnt {
                 pieces: new_pieces,
@@ -48,45 +48,51 @@ fn part2(input: &[InputEnt]) -> u64 {
         })
         .collect::<Vec<InputEnt>>();
 
-    let mut result = 0;
-
-    for line in input {
-        result += piece_solutions(&line.pieces, &line.clues);
-        println!("{result}");
-    }
-
-    result
+    // Process new input
+    input
+        .iter()
+        .map(|line| piece_solutions(&line.pieces, &line.clues))
+        .sum()
 }
 
 fn piece_solutions(pieces: &[SpringState], clues: &[u8]) -> u64 {
     // Build match pattern
     let (pattern_len, pattern) = clues_to_pattern(pieces, clues);
 
-    let mut solutions = 0;
-    solve(pieces.to_vec(), 0, pattern_len, &pattern, 0, &mut solutions);
+    // Create memo hash map
+    let mut sol_map = HashMap::new();
 
-    solutions
+    // Solve
+    solve(pieces.to_vec(), 0, pattern_len, &pattern, 0, &mut sol_map)
 }
 
 fn clues_to_pattern(pieces: &[SpringState], clues: &[u8]) -> (usize, Vec<PatternElem>) {
     let mut pattern = Vec::new();
 
+    // Start with maybe working
     pattern.push(PatternElem::MaybeWorking);
 
     for c in clues {
+        // Add broken group
         for _ in 0..*c {
             pattern.push(PatternElem::Broken);
         }
+
+        // Broken group must be followed by working
         pattern.push(PatternElem::Working);
         pattern.push(PatternElem::MaybeWorking);
     }
 
+    // Remove last working group
     pattern.pop();
     pattern.pop();
 
+    // Set minimum pattern match length
     let pattern_len = pattern.len();
 
+    // Does line end with a broken spring?
     if !matches!(pieces[pieces.len() - 1], SpringState::Broken) {
+        // No - add MaybeWorking to the end of the pattern
         pattern.push(PatternElem::MaybeWorking);
     }
 
@@ -95,44 +101,75 @@ fn clues_to_pattern(pieces: &[SpringState], clues: &[u8]) -> (usize, Vec<Pattern
 
 fn solve(
     pieces: Vec<SpringState>,
-    mut start: usize,
+    piece_start: usize,
     pattern_len: usize,
     pattern: &[PatternElem],
     pattern_elem: usize,
-    solutions: &mut u64,
-) {
-    let mut pieces = pieces.to_vec();
-    let mut elem = pattern_elem;
+    sol_map: &mut HashMap<(usize, usize, SpringState), u64>,
+) -> u64 {
+    // Check memo hash map for an existing solution
+    if let Some(solutions) = sol_map.get(&(piece_start, pattern_elem, pieces[piece_start])) {
+        // Found one - return it
+        *solutions
+    } else {
+        let mut solutions = 0;
+        let mut pieces = pieces.to_vec();
+        let mut new_piece_start = piece_start;
+        let mut new_pattern_elem = pattern_elem;
 
-    match check_sol(&mut pieces, &mut start, pattern, &mut elem) {
-        None => {
-            if elem >= pattern_len {
-                #[cfg(test)]
-                println!("SOLVED: {}", print_state(&pieces));
-                *solutions += 1;
+        // Check the solution so far
+        match check_sol(
+            &mut pieces,
+            &mut new_piece_start,
+            pattern,
+            &mut new_pattern_elem,
+        ) {
+            None => {
+                // Complete pattern match - check match length
+                if new_pattern_elem >= pattern_len {
+                    // Matched
+                    solutions += 1;
+                }
             }
-        }
-        Some(true) => {
-            let mut pieces_rec = pieces.clone();
-            pieces_rec[start] = SpringState::Broken;
-            solve(pieces_rec, start, pattern_len, pattern, elem, solutions);
+            Some(true) => {
+                // Found a choice - try with a broken spring
+                let mut pieces_rec = pieces.clone();
+                pieces_rec[new_piece_start] = SpringState::Broken;
+                solutions += solve(
+                    pieces_rec,
+                    new_piece_start,
+                    pattern_len,
+                    pattern,
+                    new_pattern_elem,
+                    sol_map,
+                );
 
-            let mut pieces_rec = pieces.clone();
-            pieces_rec[start] = SpringState::Working;
-            solve(pieces_rec, start, pattern_len, pattern, elem, solutions);
+                // Then try with a working spring
+                let mut pieces_rec = pieces.clone();
+                pieces_rec[new_piece_start] = SpringState::Working;
+                solutions += solve(
+                    pieces_rec,
+                    new_piece_start,
+                    pattern_len,
+                    pattern,
+                    new_pattern_elem,
+                    sol_map,
+                );
+            }
+            Some(false) => (), // No match
         }
-        Some(false) => {
-            #[cfg(test)]
-            println!("No match")
-        }
+
+        sol_map.insert((piece_start, pattern_elem, pieces[piece_start]), solutions);
+
+        solutions
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum SpringState {
-    Unsolved,
-    Working,
-    Broken,
+    Unsolved, // Unsolved spring
+    Working,  // Working spring
+    Broken,   // Broken spring
 }
 
 #[derive(Debug)]
@@ -144,11 +181,11 @@ enum PatternElem {
 
 #[derive(Debug)]
 enum Match {
-    None,
-    Matched,
-    Maybe,
-    Choice,
-    Set(SpringState),
+    None,             // No match
+    Matched,          // Matched exactly
+    Maybe,            // Matched maybe
+    Choice,           // Choice found
+    Set(SpringState), // Set state (= Matched)
 }
 
 fn check_sol(
@@ -157,23 +194,13 @@ fn check_sol(
     pattern: &[PatternElem],
     pattern_elem: &mut usize,
 ) -> Option<bool> {
-    #[cfg(test)]
-    println!(
-        "Checking {} ({start}) against {pattern:?} ({pattern_elem})",
-        print_state(state)
-    );
-
     let matched = state.iter_mut().skip(*start).find_map(|s| {
+        // Check pattern bounds
         if *pattern_elem >= pattern.len() {
             return Some(false);
         }
 
-        #[cfg(test)]
-        print!(
-            "{s:?} vs {:?} ({}) : ",
-            pattern[*pattern_elem], *pattern_elem
-        );
-
+        // Match pattern against spring state
         let mut matched = match pattern[*pattern_elem] {
             PatternElem::Working => match s {
                 SpringState::Working => Match::Matched,
@@ -184,14 +211,20 @@ fn check_sol(
                 SpringState::Unsolved => Match::Choice,
                 SpringState::Working => Match::Maybe,
                 SpringState::Broken => {
+                    // Got a broken spring for MaybeWorking - check advance
                     if *pattern_elem + 1 == pattern.len() {
+                        // Pattern exhausted
                         Match::None
                     } else {
+                        // Move to next pattern element
                         *pattern_elem += 1;
 
+                        // Is next pattern element a broken spring?
                         if matches!(pattern[*pattern_elem], PatternElem::Broken) {
+                            // Yes - matched
                             Match::Matched
                         } else {
+                            // No - no match
                             Match::None
                         }
                     }
@@ -204,51 +237,35 @@ fn check_sol(
             },
         };
 
-        #[cfg(test)]
-        println!("{matched:?}");
-
+        // Need to set the piece?
         if let Match::Set(spring_state) = matched {
             *s = spring_state;
             matched = Match::Matched;
         };
 
+        // Check match state
         match matched {
             Match::None => Some(false),
             Match::Matched => {
+                // Matched - advance state and pattern
                 *start += 1;
                 *pattern_elem += 1;
                 None
             }
             Match::Maybe => {
+                // Partial match - advance state
                 *start += 1;
                 None
             }
-            Match::Choice => Some(true),
+            Match::Choice => {
+                // Choice found
+                Some(true)
+            }
             _ => unreachable!(),
         }
     });
 
-    #[cfg(test)]
-    println!(
-        " -> {matched:?}, {} {}, {}",
-        *start,
-        *pattern_elem,
-        print_state(state)
-    );
-
     matched
-}
-
-#[cfg(test)]
-fn print_state(state: &[SpringState]) -> String {
-    state
-        .iter()
-        .map(|s| match s {
-            SpringState::Broken => '#',
-            SpringState::Working => '.',
-            SpringState::Unsolved => '?',
-        })
-        .collect::<String>()
 }
 
 // Input parsing
@@ -302,14 +319,15 @@ mod tests {
 
         let (pattern_len, pattern) = clues_to_pattern(&line.pieces, &line.clues);
 
-        let mut solutions = 0;
-        solve(
+        let mut sol_map = HashMap::new();
+
+        let solutions = solve(
             line.pieces.to_vec(),
             0,
             pattern_len,
             &pattern,
             0,
-            &mut solutions,
+            &mut sol_map,
         );
 
         assert_eq!(expected, solutions);
@@ -346,9 +364,19 @@ mod tests {
     }
 
     #[test]
+    fn test_solve7() {
+        test_solve("?###??????????###??????????###??????????###??????????###???????? 3,2,1,3,2,1,3,2,1,3,2,1,3,2,1", 506250)
+    }
+
+    #[test]
     fn test1() {
         let input = parse_test_vec(EXAMPLE1, input_transform).unwrap();
         assert_eq!(part1(&input), 21);
+    }
+
+    #[test]
+    fn test2() {
+        let input = parse_test_vec(EXAMPLE1, input_transform).unwrap();
         assert_eq!(part2(&input), 525152);
     }
 }

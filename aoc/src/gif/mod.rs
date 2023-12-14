@@ -149,11 +149,13 @@ impl Gif {
     }
 
     /// Returns dimensions of the image
+    #[inline]
     pub fn dimensions(&self) -> (u16, u16) {
         (self.gif_width, self.gif_height)
     }
 
     /// Returns a new empty fram for the image
+    #[inline]
     pub fn empty_frame(&self) -> Vec<Vec<u8>> {
         vec![vec![0; self.gif_width as usize]; self.gif_height as usize]
     }

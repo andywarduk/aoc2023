@@ -7,7 +7,6 @@ use std::{
 use aoc::{gif::Gif, input::parse_input_vec};
 
 const SQUARE: usize = 6;
-const MOVE: isize = (SQUARE / 1) as isize;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Get input
@@ -61,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-type Move = ((usize, usize), (usize, usize));
+type Move = ((usize, usize), (usize, usize), (isize, isize));
 
 fn roll(
     gif: &mut Gif,
@@ -75,79 +74,67 @@ fn roll(
     // Create base frame
     let mut frame = draw_frame(gif_width, gif_height, map);
 
-    let (inc_x, inc_y) = match dir {
-        Dir::N => {
-            (0..map[0].len()).for_each(|x| {
-                (1..map.len()).for_each(|y| {
-                    if map[y][x] == State::Rock {
-                        let lx = x;
-                        roll_rock(map, x, y, (0..y).rev().map(move |ly| (lx, ly)), &mut moves);
-                    }
-                });
+    match dir {
+        Dir::N => (0..map[0].len()).for_each(|x| {
+            (1..map.len()).for_each(|y| {
+                if map[y][x] == State::Rock {
+                    let lx = x;
+                    roll_rock(map, x, y, (0..y).rev().map(move |ly| (lx, ly)), &mut moves);
+                }
             });
-            (0isize, -MOVE)
-        }
-        Dir::S => {
-            (0..map[0].len()).for_each(|x| {
-                (0..(map.len() - 1)).rev().for_each(|y| {
-                    if map[y][x] == State::Rock {
-                        let lx = x;
-                        roll_rock(
-                            map,
-                            x,
-                            y,
-                            ((y + 1)..map.len()).map(move |ly| (lx, ly)),
-                            &mut moves,
-                        );
-                    }
-                });
+        }),
+        Dir::S => (0..map[0].len()).for_each(|x| {
+            (0..(map.len() - 1)).rev().for_each(|y| {
+                if map[y][x] == State::Rock {
+                    let lx = x;
+                    roll_rock(
+                        map,
+                        x,
+                        y,
+                        ((y + 1)..map.len()).map(move |ly| (lx, ly)),
+                        &mut moves,
+                    );
+                }
             });
-            (0isize, MOVE)
-        }
-        Dir::E => {
-            (0..map.len()).for_each(|y| {
-                (0..(map[0].len() - 1)).rev().for_each(|x| {
-                    if map[y][x] == State::Rock {
-                        let ly = y;
-                        roll_rock(
-                            map,
-                            x,
-                            y,
-                            ((x + 1)..map[0].len()).map(move |lx| (lx, ly)),
-                            &mut moves,
-                        );
-                    }
-                });
+        }),
+        Dir::E => (0..map.len()).for_each(|y| {
+            (0..(map[0].len() - 1)).rev().for_each(|x| {
+                if map[y][x] == State::Rock {
+                    let ly = y;
+                    roll_rock(
+                        map,
+                        x,
+                        y,
+                        ((x + 1)..map[0].len()).map(move |lx| (lx, ly)),
+                        &mut moves,
+                    );
+                }
             });
-            (MOVE, 0isize)
-        }
-        Dir::W => {
-            (0..map.len()).for_each(|y| {
-                (1..map[0].len()).for_each(|x| {
-                    if map[y][x] == State::Rock {
-                        let ly = y;
-                        roll_rock(map, x, y, (0..x).rev().map(move |lx| (lx, ly)), &mut moves);
-                    }
-                });
+        }),
+        Dir::W => (0..map.len()).for_each(|y| {
+            (1..map[0].len()).for_each(|x| {
+                if map[y][x] == State::Rock {
+                    let ly = y;
+                    roll_rock(map, x, y, (0..x).rev().map(move |lx| (lx, ly)), &mut moves);
+                }
             });
-            (-MOVE, 0isize)
-        }
+        }),
     };
 
     while !moves.is_empty() {
         // Blank out rocks
-        for &((cx, cy), _) in moves.iter() {
+        for &((cx, cy), _, _) in moves.iter() {
             draw_cell(&mut frame, cx, cy, &State::Empty);
         }
 
         // Move rocks
-        moves.iter_mut().for_each(|((cx, cy), _)| {
-            *cx = (*cx as isize + inc_x) as usize;
-            *cy = (*cy as isize + inc_y) as usize;
+        moves.iter_mut().for_each(|((cx, cy), _, (ix, iy))| {
+            *cx = (*cx as isize + *ix) as usize;
+            *cy = (*cy as isize + *iy) as usize;
         });
 
         // Draw rocks
-        for &((cx, cy), _) in moves.iter() {
+        for &((cx, cy), _, _) in moves.iter() {
             draw_cell(&mut frame, cx, cy, &State::Rock);
         }
 
@@ -156,7 +143,7 @@ fn roll(
         // Filter moves
         moves = moves
             .into_iter()
-            .filter(|((cx, cy), (rx, ry))| cx != rx || cy != ry)
+            .filter(|((cx, cy), (rx, ry), _)| cx != rx || cy != ry)
             .collect::<Vec<Move>>();
     }
 
@@ -185,7 +172,14 @@ fn roll_rock(
     map[ry][rx] = State::Rock;
 
     if rx != x || ry != y {
-        moves.push(((x * SQUARE, y * SQUARE), (rx * SQUARE, ry * SQUARE)));
+        let ix = (rx as isize - x as isize) * 2;
+        let iy = (ry as isize - y as isize) * 2;
+
+        moves.push((
+            (x * SQUARE, y * SQUARE),
+            (rx * SQUARE, ry * SQUARE),
+            (ix, iy),
+        ));
     }
 }
 

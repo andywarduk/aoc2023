@@ -7,6 +7,7 @@ use std::{
 use aoc::{gif::Gif, input::parse_input_vec};
 
 const SQUARE: usize = 6;
+const MOVE: isize = (SQUARE / 1) as isize;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Get input
@@ -30,18 +31,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         1,
     )?;
 
+    // Draw initail frame
     draw_map(&mut gif, gif_width, gif_height, &map)?;
 
     loop {
         // Roll the rocks
-        roll(&mut map, Dir::N);
-        draw_map(&mut gif, gif_width, gif_height, &map)?;
-        roll(&mut map, Dir::W);
-        draw_map(&mut gif, gif_width, gif_height, &map)?;
-        roll(&mut map, Dir::S);
-        draw_map(&mut gif, gif_width, gif_height, &map)?;
-        roll(&mut map, Dir::E);
-        draw_map(&mut gif, gif_width, gif_height, &map)?;
+        roll(&mut gif, gif_width, gif_height, &mut map, Dir::N)?;
+        roll(&mut gif, gif_width, gif_height, &mut map, Dir::W)?;
+        roll(&mut gif, gif_width, gif_height, &mut map, Dir::S)?;
+        roll(&mut gif, gif_width, gif_height, &mut map, Dir::E)?;
 
         // Hash the map
         let mut hasher = DefaultHasher::new();
@@ -63,41 +61,106 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn roll(map: &mut [InputEnt], dir: Dir) {
-    match dir {
-        Dir::N => (0..map[0].len()).for_each(|x| {
-            (1..map.len()).for_each(|y| {
-                if map[y][x] == State::Rock {
-                    let lx = x;
-                    roll_rock(map, x, y, (0..y).rev().map(move |ly| (lx, ly)));
-                }
+type Move = ((usize, usize), (usize, usize));
+
+fn roll(
+    gif: &mut Gif,
+    gif_width: u16,
+    gif_height: u16,
+    map: &mut [InputEnt],
+    dir: Dir,
+) -> Result<(), Box<dyn Error>> {
+    let mut moves = Vec::new();
+
+    // Create base frame
+    let mut frame = draw_frame(gif_width, gif_height, map);
+
+    let (inc_x, inc_y) = match dir {
+        Dir::N => {
+            (0..map[0].len()).for_each(|x| {
+                (1..map.len()).for_each(|y| {
+                    if map[y][x] == State::Rock {
+                        let lx = x;
+                        roll_rock(map, x, y, (0..y).rev().map(move |ly| (lx, ly)), &mut moves);
+                    }
+                });
             });
-        }),
-        Dir::S => (0..map[0].len()).for_each(|x| {
-            (0..(map.len() - 1)).rev().for_each(|y| {
-                if map[y][x] == State::Rock {
-                    let lx = x;
-                    roll_rock(map, x, y, ((y + 1)..map.len()).map(move |ly| (lx, ly)));
-                }
+            (0isize, -MOVE)
+        }
+        Dir::S => {
+            (0..map[0].len()).for_each(|x| {
+                (0..(map.len() - 1)).rev().for_each(|y| {
+                    if map[y][x] == State::Rock {
+                        let lx = x;
+                        roll_rock(
+                            map,
+                            x,
+                            y,
+                            ((y + 1)..map.len()).map(move |ly| (lx, ly)),
+                            &mut moves,
+                        );
+                    }
+                });
             });
-        }),
-        Dir::E => (0..map.len()).for_each(|y| {
-            (0..(map[0].len() - 1)).rev().for_each(|x| {
-                if map[y][x] == State::Rock {
-                    let ly = y;
-                    roll_rock(map, x, y, ((x + 1)..map[0].len()).map(move |lx| (lx, ly)));
-                }
+            (0isize, MOVE)
+        }
+        Dir::E => {
+            (0..map.len()).for_each(|y| {
+                (0..(map[0].len() - 1)).rev().for_each(|x| {
+                    if map[y][x] == State::Rock {
+                        let ly = y;
+                        roll_rock(
+                            map,
+                            x,
+                            y,
+                            ((x + 1)..map[0].len()).map(move |lx| (lx, ly)),
+                            &mut moves,
+                        );
+                    }
+                });
             });
-        }),
-        Dir::W => (0..map.len()).for_each(|y| {
-            (1..map[0].len()).for_each(|x| {
-                if map[y][x] == State::Rock {
-                    let ly = y;
-                    roll_rock(map, x, y, (0..x).rev().map(move |lx| (lx, ly)));
-                }
+            (MOVE, 0isize)
+        }
+        Dir::W => {
+            (0..map.len()).for_each(|y| {
+                (1..map[0].len()).for_each(|x| {
+                    if map[y][x] == State::Rock {
+                        let ly = y;
+                        roll_rock(map, x, y, (0..x).rev().map(move |lx| (lx, ly)), &mut moves);
+                    }
+                });
             });
-        }),
+            (-MOVE, 0isize)
+        }
+    };
+
+    while !moves.is_empty() {
+        // Blank out rocks
+        for &((cx, cy), _) in moves.iter() {
+            draw_cell(&mut frame, cx, cy, &State::Empty);
+        }
+
+        // Move rocks
+        moves.iter_mut().for_each(|((cx, cy), _)| {
+            *cx = (*cx as isize + inc_x) as usize;
+            *cy = (*cy as isize + inc_y) as usize;
+        });
+
+        // Draw rocks
+        for &((cx, cy), _) in moves.iter() {
+            draw_cell(&mut frame, cx, cy, &State::Rock);
+        }
+
+        gif.draw_frame(frame.clone(), 1)?;
+
+        // Filter moves
+        moves = moves
+            .into_iter()
+            .filter(|((cx, cy), (rx, ry))| cx != rx || cy != ry)
+            .collect::<Vec<Move>>();
     }
+
+    Ok(())
 }
 
 fn roll_rock(
@@ -105,6 +168,7 @@ fn roll_rock(
     x: usize,
     y: usize,
     pos_iter: impl Iterator<Item = (usize, usize)>,
+    moves: &mut Vec<Move>,
 ) {
     map[y][x] = State::Empty;
 
@@ -119,6 +183,10 @@ fn roll_rock(
     }
 
     map[ry][rx] = State::Rock;
+
+    if rx != x || ry != y {
+        moves.push(((x * SQUARE, y * SQUARE), (rx * SQUARE, ry * SQUARE)));
+    }
 }
 
 fn draw_map(
@@ -127,8 +195,34 @@ fn draw_map(
     height: u16,
     map: &[InputEnt],
 ) -> Result<(), Box<dyn Error>> {
+    let frame = draw_frame(width, height, map);
+
+    gif.draw_frame(frame, 5)?;
+
+    Ok(())
+}
+
+fn draw_frame(width: u16, height: u16, map: &[InputEnt]) -> Vec<Vec<u8>> {
     let mut frame = vec![vec![0; width as usize]; height as usize];
 
+    let mut gy = 0;
+
+    for line in map {
+        let mut gx = 0;
+
+        for cell in line {
+            draw_cell(&mut frame, gx, gy, cell);
+
+            gx += SQUARE;
+        }
+
+        gy += SQUARE;
+    }
+
+    frame
+}
+
+fn draw_cell(frame: &mut Vec<Vec<u8>>, gx: usize, gy: usize, cell: &State) {
     let draw_pixels = |frame: &mut Vec<Vec<u8>>,
                        gx: usize,
                        gy: usize,
@@ -143,57 +237,56 @@ fn draw_map(
         }
     };
 
-    let mut gy = 0;
-
-    for line in map {
-        let mut gx = 0;
-
-        for cell in line {
-            match cell {
-                State::Empty => (),
-                State::Rock => {
-                    draw_pixels(
-                        &mut frame,
-                        gx,
-                        gy,
-                        &[
-                            [0, 0, 0, 0, 0, 0],
-                            [0, 0, 1, 1, 1, 0],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 0, 1, 1, 1, 0],
-                        ],
-                        1,
-                    );
-                }
-                State::Cube => {
-                    draw_pixels(
-                        &mut frame,
-                        gx,
-                        gy,
-                        &[
-                            [0, 0, 0, 0, 0, 0],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                            [0, 1, 1, 1, 1, 1],
-                        ],
-                        2,
-                    );
-                }
-            }
-
-            gx += SQUARE;
+    match cell {
+        State::Empty => {
+            draw_pixels(
+                frame,
+                gx,
+                gy,
+                &[
+                    [1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1],
+                ],
+                0,
+            );
         }
-
-        gy += SQUARE;
+        State::Rock => {
+            draw_pixels(
+                frame,
+                gx,
+                gy,
+                &[
+                    [0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 0, 1, 1, 1, 0],
+                ],
+                1,
+            );
+        }
+        State::Cube => {
+            draw_pixels(
+                frame,
+                gx,
+                gy,
+                &[
+                    [0, 0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1],
+                ],
+                2,
+            );
+        }
     }
-
-    gif.draw_frame(frame, 5)?;
-
-    Ok(())
 }
 
 #[derive(Debug, PartialEq, Clone, Hash)]

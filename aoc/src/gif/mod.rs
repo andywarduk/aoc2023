@@ -148,6 +148,16 @@ impl Gif {
         Ok(())
     }
 
+    /// Returns dimensions of the image
+    pub fn dimensions(&self) -> (u16, u16) {
+        (self.gif_width, self.gif_height)
+    }
+
+    /// Returns a new empty fram for the image
+    pub fn empty_frame(&self) -> Vec<Vec<u8>> {
+        vec![vec![0; self.gif_width as usize]; self.gif_height as usize]
+    }
+
     /// Calculates the difference between a given frame and the last frame output
     /// Returns None if there is no difference
     /// If there is no previous frame then the whole frame is considered changed

@@ -74,9 +74,6 @@ const RANGE_COLS: usize = 240;
 const DEPTH_DRAW: usize = 30;
 
 fn visualise(map: &[MapRow], start_x: usize, start_y: usize) -> Result<(), Box<dyn Error>> {
-    let width = map[0].len() * CELLDIM;
-    let height = map.len() * CELLDIM;
-
     // Build palette
     let mut palette: Vec<[u8; 3]> = vec![[0, 0, 0], [255, 255, 255], [128, 128, 128], [0, 0, 255]];
     let range_start = palette.len();
@@ -94,14 +91,14 @@ fn visualise(map: &[MapRow], start_x: usize, start_y: usize) -> Result<(), Box<d
     let mut gif = Gif::new(
         "vis/day10.gif",
         palette.as_slice(),
-        width as u16,
-        height as u16,
+        (map[0].len() * CELLDIM) as u16,
+        (map.len() * CELLDIM) as u16,
         2,
         2,
     )?;
 
     // Draw base frame
-    let mut base_frame = vec![vec![0; width]; height];
+    let mut base_frame = gif.empty_frame();
 
     for (y, row) in map.iter().enumerate() {
         for (x, p) in row.iter().enumerate() {

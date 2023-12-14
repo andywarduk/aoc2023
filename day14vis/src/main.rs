@@ -18,27 +18,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create GIF
     let palette: Vec<[u8; 3]> = vec![[0, 0, 0], [149, 141, 133], [83, 186, 183]];
-    let gif_width = (map[0].len() * SQUARE) as u16 + 1;
-    let gif_height = (map.len() * SQUARE) as u16 + 1;
 
     let mut gif = Gif::new(
         "vis/day14.gif",
         palette.as_slice(),
-        gif_width,
-        gif_height,
+        (map[0].len() * SQUARE) as u16 + 1,
+        (map.len() * SQUARE) as u16 + 1,
         1,
         1,
     )?;
 
     // Draw initail frame
-    draw_map(&mut gif, gif_width, gif_height, &map)?;
+    draw_map(&mut gif, &map)?;
 
     loop {
         // Roll the rocks
-        roll(&mut gif, gif_width, gif_height, &mut map, Dir::N)?;
-        roll(&mut gif, gif_width, gif_height, &mut map, Dir::W)?;
-        roll(&mut gif, gif_width, gif_height, &mut map, Dir::S)?;
-        roll(&mut gif, gif_width, gif_height, &mut map, Dir::E)?;
+        roll(&mut gif, &mut map, Dir::N)?;
+        roll(&mut gif, &mut map, Dir::W)?;
+        roll(&mut gif, &mut map, Dir::S)?;
+        roll(&mut gif, &mut map, Dir::E)?;
 
         // Hash the map
         let mut hasher = DefaultHasher::new();
@@ -62,17 +60,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 type Move = ((usize, usize), (usize, usize), (isize, isize));
 
-fn roll(
-    gif: &mut Gif,
-    gif_width: u16,
-    gif_height: u16,
-    map: &mut [InputEnt],
-    dir: Dir,
-) -> Result<(), Box<dyn Error>> {
+fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Error>> {
     let mut moves = Vec::new();
 
     // Create base frame
-    let mut frame = draw_frame(gif_width, gif_height, map);
+    let mut frame = draw_frame(gif, map);
 
     match dir {
         Dir::N => (0..map[0].len()).for_each(|x| {
@@ -183,21 +175,16 @@ fn roll_rock(
     }
 }
 
-fn draw_map(
-    gif: &mut Gif,
-    width: u16,
-    height: u16,
-    map: &[InputEnt],
-) -> Result<(), Box<dyn Error>> {
-    let frame = draw_frame(width, height, map);
+fn draw_map(gif: &mut Gif, map: &[InputEnt]) -> Result<(), Box<dyn Error>> {
+    let frame = draw_frame(gif, map);
 
     gif.draw_frame(frame, 5)?;
 
     Ok(())
 }
 
-fn draw_frame(width: u16, height: u16, map: &[InputEnt]) -> Vec<Vec<u8>> {
-    let mut frame = vec![vec![0; width as usize]; height as usize];
+fn draw_frame(gif: &Gif, map: &[InputEnt]) -> Vec<Vec<u8>> {
+    let mut frame = gif.empty_frame();
 
     let mut gy = 0;
 

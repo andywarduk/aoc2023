@@ -148,16 +148,21 @@ impl Gif {
         Ok(())
     }
 
-    /// Returns dimensions of the image
+    /// Returns dimensions of the pre-scaled image
     #[inline]
     pub fn dimensions(&self) -> (u16, u16) {
-        (self.gif_width, self.gif_height)
+        (
+            self.gif_width / self.x_scale,
+            self.gif_height / self.y_scale,
+        )
     }
 
     /// Returns a new empty fram for the image
     #[inline]
     pub fn empty_frame(&self) -> Vec<Vec<u8>> {
-        vec![vec![0; self.gif_width as usize]; self.gif_height as usize]
+        let (w, h) = self.dimensions();
+
+        vec![vec![0; w as usize]; h as usize]
     }
 
     /// Calculates the difference between a given frame and the last frame output

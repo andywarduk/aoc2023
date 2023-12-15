@@ -4,13 +4,48 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-use aoc::{gif::Gif, input::parse_input_vec};
+use aoc::{
+    gif::Gif,
+    input::{parse_input_vec, parse_test_vec},
+};
 
 const SQUARE: usize = 6;
 
+const EXAMPLE1: &str = "\
+O....#....
+O.OO#....#
+.....##...
+OO.#O....O
+.O.....O#.
+O.#..O.#.#
+..O..#O..O
+.......O..
+#....###..
+#OO..#....";
+
 fn main() -> Result<(), Box<dyn Error>> {
+    // Render example
+    let map = parse_test_vec(EXAMPLE1, input_transform).unwrap();
+    render(map, "vis/day14ex.gif", 4, Rate::Constant(1))?;
+
+    // Get input and render
+    let map = parse_input_vec(14, input_transform)?;
+    render(map, "vis/day14.gif", 1, Rate::Fast(3))?;
+
+    Ok(())
+}
+
+enum Rate {
+    Fast(u8),
+    Constant(u8),
+}
+fn render(
+    mut map: Vec<InputEnt>,
+    file: &str,
+    scale: u16,
+    rate: Rate,
+) -> Result<(), Box<dyn Error>> {
     // Get input
-    let mut map = parse_input_vec(14, input_transform)?;
 
     let mut hashes = HashMap::new();
 
@@ -20,12 +55,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let palette: Vec<[u8; 3]> = vec![[0, 0, 0], [149, 141, 133], [83, 186, 183]];
 
     let mut gif = Gif::new(
-        "vis/day14.gif",
+        file,
         palette.as_slice(),
         (map[0].len() * SQUARE) as u16 + 1,
         (map.len() * SQUARE) as u16 + 1,
-        1,
-        1,
+        scale,
+        scale,
     )?;
 
     // Draw initail frame
@@ -33,10 +68,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         // Roll the rocks
-        roll(&mut gif, &mut map, Dir::N)?;
-        roll(&mut gif, &mut map, Dir::W)?;
-        roll(&mut gif, &mut map, Dir::S)?;
-        roll(&mut gif, &mut map, Dir::E)?;
+        roll(&mut gif, &mut map, Dir::N, &rate)?;
+        roll(&mut gif, &mut map, Dir::W, &rate)?;
+        roll(&mut gif, &mut map, Dir::S, &rate)?;
+        roll(&mut gif, &mut map, Dir::E, &rate)?;
 
         // Hash the map
         let mut hasher = DefaultHasher::new();
@@ -60,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 type Move = ((usize, usize), (usize, usize), (isize, isize));
 
-fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Error>> {
+fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir, rate: &Rate) -> Result<(), Box<dyn Error>> {
     let mut moves = Vec::new();
 
     // Create base frame
@@ -71,7 +106,14 @@ fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Err
             (1..map.len()).for_each(|y| {
                 if map[y][x] == State::Rock {
                     let lx = x;
-                    roll_rock(map, x, y, (0..y).rev().map(move |ly| (lx, ly)), &mut moves);
+                    roll_rock(
+                        map,
+                        x,
+                        y,
+                        (0..y).rev().map(move |ly| (lx, ly)),
+                        rate,
+                        &mut moves,
+                    );
                 }
             });
         }),
@@ -84,6 +126,7 @@ fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Err
                         x,
                         y,
                         ((y + 1)..map.len()).map(move |ly| (lx, ly)),
+                        rate,
                         &mut moves,
                     );
                 }
@@ -98,6 +141,7 @@ fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Err
                         x,
                         y,
                         ((x + 1)..map[0].len()).map(move |lx| (lx, ly)),
+                        rate,
                         &mut moves,
                     );
                 }
@@ -107,7 +151,14 @@ fn roll(gif: &mut Gif, map: &mut [InputEnt], dir: Dir) -> Result<(), Box<dyn Err
             (1..map[0].len()).for_each(|x| {
                 if map[y][x] == State::Rock {
                     let ly = y;
-                    roll_rock(map, x, y, (0..x).rev().map(move |lx| (lx, ly)), &mut moves);
+                    roll_rock(
+                        map,
+                        x,
+                        y,
+                        (0..x).rev().map(move |lx| (lx, ly)),
+                        rate,
+                        &mut moves,
+                    );
                 }
             });
         }),
@@ -147,6 +198,7 @@ fn roll_rock(
     x: usize,
     y: usize,
     pos_iter: impl Iterator<Item = (usize, usize)>,
+    rate: &Rate,
     moves: &mut Vec<Move>,
 ) {
     map[y][x] = State::Empty;
@@ -164,8 +216,18 @@ fn roll_rock(
     map[ry][rx] = State::Rock;
 
     if rx != x || ry != y {
-        let ix = (rx as isize - x as isize) * 2;
-        let iy = (ry as isize - y as isize) * 2;
+        let (ix, iy) = match rate {
+            Rate::Fast(rate) => {
+                let ix = (rx as isize - x as isize) * (SQUARE as isize / *rate as isize);
+                let iy = (ry as isize - y as isize) * (SQUARE as isize / *rate as isize);
+                (ix, iy)
+            }
+            Rate::Constant(rate) => {
+                let ix = (rx as isize - x as isize).signum() * *rate as isize;
+                let iy = (ry as isize - y as isize).signum() * *rate as isize;
+                (ix, iy)
+            }
+        };
 
         moves.push((
             (x * SQUARE, y * SQUARE),

@@ -79,7 +79,9 @@ fn draw_trench(plan: &[PlanStep], file: &str) -> Result<(), Box<dyn Error>> {
         file.write_fmt(format_args!(" L {x} {y}"))?;
     }
 
-    file.write_fmt(format_args!("Z \" stroke=\"black\" fill=\"red\"/>"))?;
+    file.write_fmt(format_args!(
+        "Z \" stroke=\"black\" stroke-width=\"0.15%\" fill=\"red\"/>"
+    ))?;
 
     file.write_fmt(format_args!("</svg>\n"))?;
 

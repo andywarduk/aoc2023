@@ -21,47 +21,33 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Plan line
+/// Plan vertical line
 #[derive(Debug)]
-struct Line {
-    sx: i64,
+struct VLine {
+    x: i64,
     sy: i64,
-    ex: i64,
     ey: i64,
 }
 
-impl Line {
+#[derive(PartialEq)]
+enum VLineDir {
+    Up,
+    Down,
+}
+
+impl VLine {
     /// Returns the direction of the plan line
-    fn direction(&self) -> Dir {
-        if self.sx == self.ex {
-            // Horizontal
-            if self.sy < self.ey {
-                Dir::Down
-            } else {
-                Dir::Up
-            }
+    fn direction(&self) -> VLineDir {
+        if self.sy < self.ey {
+            VLineDir::Down
         } else {
-            // Vertical
-            if self.sx < self.ex {
-                Dir::Right
-            } else {
-                Dir::Left
-            }
+            VLineDir::Up
         }
     }
 }
 
-/// Line direction
-#[derive(PartialEq)]
-enum Dir {
-    Up = 1,
-    Down = 2,
-    Left = 4,
-    Right = 8,
-}
-
-/// Convert plan to lines
-fn get_lines(plan: &[PlanStep]) -> Vec<Line> {
+/// Convert plan to veritcal lines
+fn get_vlines(plan: &[PlanStep]) -> Vec<VLine> {
     let mut lines = Vec::new();
 
     let mut x = 0i64;
@@ -69,24 +55,18 @@ fn get_lines(plan: &[PlanStep]) -> Vec<Line> {
 
     // Convert plan to lines
     for step in plan {
-        let mut line = Line {
-            sx: x,
-            sy: y,
-            ex: 0,
-            ey: 0,
-        };
+        let sy = y;
 
         match step.dir {
-            Dir::Up => y -= step.amount as i64,
-            Dir::Down => y += step.amount as i64,
-            Dir::Left => x -= step.amount as i64,
-            Dir::Right => x += step.amount as i64,
+            PlanDir::Up => y -= step.amount as i64,
+            PlanDir::Down => y += step.amount as i64,
+            PlanDir::Left => x -= step.amount as i64,
+            PlanDir::Right => x += step.amount as i64,
         }
 
-        line.ex = x;
-        line.ey = y;
-
-        lines.push(line)
+        if sy != y {
+            lines.push(VLine { x, sy, ey: y })
+        }
     }
 
     lines
@@ -94,126 +74,123 @@ fn get_lines(plan: &[PlanStep]) -> Vec<Line> {
 
 /// Calculate the area enclosed by the trench
 fn calc_area(plan: &[PlanStep]) -> i64 {
-    let lines = get_lines(plan);
+    // Get vertical lines
+    let lines = get_vlines(plan);
 
     // Get interesting y coordinates
-    let mut ys = lines
-        .iter()
-        .flat_map(|l| {
-            if l.sy == l.ey {
-                vec![l.sy]
-            } else {
-                vec![l.sy, l.ey]
-            }
-        })
-        .collect::<Vec<_>>();
+    let mut ys = lines.iter().flat_map(|l| [l.sy, l.ey]).collect::<Vec<_>>();
 
+    // Sort and deduplicate
     ys.sort();
     ys.dedup();
 
-    let mut total_area = 0;
-    let mut last_y = i64::MIN;
-    let mut last_area = 0;
+    // Calculate total area
+    let (total_area, _, _) = ys.iter().fold(
+        (0, i64::MIN, 0),
+        |(mut total_area, mut last_y, mut last_area), &y| {
+            // Add last lines
+            if last_area != 0 {
+                total_area += (y - last_y) * last_area;
+            }
 
-    for y in ys.iter() {
-        if last_area != 0 {
-            total_area += (*y - last_y) * last_area;
-        }
+            // Add this line to total area
+            total_area += calc_line_area(y, &lines);
 
-        let area = calc_line_area(*y, &lines);
-        total_area += area;
+            // Work out area of the next line and save
+            last_y = y + 1;
+            last_area = calc_line_area(last_y, &lines);
 
-        last_y = *y + 1;
-        last_area = calc_line_area(last_y, &lines);
-    }
+            (total_area, last_y, last_area)
+        },
+    );
 
     total_area
 }
 
 /// Calculate area for this y
-fn calc_line_area(y: i64, lines: &[Line]) -> i64 {
-    // Find vertical lines that intersect this y
+fn calc_line_area(y: i64, lines: &[VLine]) -> i64 {
+    // Find lines that intersect this y
     let mut yvlines = lines
         .iter()
-        .filter(|line| {
-            line.sy != line.ey && min(line.sy, line.ey) <= y && max(line.sy, line.ey) >= y
-        })
+        .filter(|line| min(line.sy, line.ey) <= y && max(line.sy, line.ey) >= y)
         .collect::<Vec<_>>();
 
     // Sort by x position
-    yvlines.sort_by(|a, b| a.sx.cmp(&b.sx));
+    yvlines.sort_by(|a, b| a.x.cmp(&b.x));
 
-    // Called when a trench is being crossed
-    let cross = |count: &mut usize, in_dir: &mut Option<Dir>| {
-        *count += 1;
-        *in_dir = None
-    };
+    // Calculate lagoon area
+    let (area, _, _, _) = yvlines.iter().fold(
+        (0, 0, None, None),
+        |(mut area, mut crossings, mut in_dir, mut in_x), vline| {
+            if vline.sy == y || vline.ey == y {
+                // Line ends or starts on this y
+                let dir = vline.direction();
 
-    // Called when coming in in a given direction
-    let in_out = |dir: Dir, count: &mut usize, in_dir: &mut Option<Dir>| match in_dir {
-        Some(cur_dir) => {
-            if *cur_dir != dir {
-                // In and out same direction
-                *in_dir = None
+                match in_dir {
+                    Some(cur_dir) => {
+                        if cur_dir == dir {
+                            // In and out in different directions
+                            crossings += 1;
+                        }
+                        in_dir = None;
+                    }
+                    None => {
+                        // In in a direction
+                        in_dir = Some(dir);
+                    }
+                }
             } else {
-                // In and out in opposite directions
-                cross(count, in_dir)
+                // Crossing the line
+                crossings += 1;
+                in_dir = None;
             }
-        }
-        None => {
-            // In in a direction
-            *in_dir = Some(dir)
-        }
-    };
 
-    let mut crossings = 0;
-    let mut in_dir = None;
-    let mut in_x = None;
-    let mut area = 0;
-
-    for vline in yvlines {
-        let x = vline.sx;
-
-        if vline.sy == y || vline.ey == y {
-            // Line ends or starts on this y
-            in_out(vline.direction(), &mut crossings, &mut in_dir);
-        } else {
-            // Crossing the line
-            cross(&mut crossings, &mut in_dir);
-        }
-
-        if crossings & 0x01 == 0x01 || in_dir.is_some() {
-            // Inside
-            if in_x.is_none() {
-                in_x = Some(x)
+            if crossings & 0x01 == 0x01 || in_dir.is_some() {
+                // Inside
+                if in_x.is_none() {
+                    in_x = Some(vline.x)
+                }
+            } else {
+                // Outside
+                if let Some(last_x) = in_x {
+                    area += (vline.x - last_x) + 1;
+                    in_x = None;
+                }
             }
-        } else {
-            // Outside
-            if let Some(last_x) = in_x {
-                area += (x - last_x) + 1;
-                in_x = None;
-            }
-        }
-    }
+
+            (area, crossings, in_dir, in_x)
+        },
+    );
 
     area
 }
 
 // Input parsing
 
+/// Plan step
 struct PlanStep {
-    dir: Dir,
+    dir: PlanDir,
     amount: u64,
 }
 
+/// Dig direction
+#[derive(PartialEq)]
+enum PlanDir {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+/// Transform for part 1
 fn input_transform1(line: String) -> PlanStep {
     let mut split = line.split_ascii_whitespace();
 
     let dir = match split.next().unwrap() {
-        "U" => Dir::Up,
-        "D" => Dir::Down,
-        "L" => Dir::Left,
-        "R" => Dir::Right,
+        "U" => PlanDir::Up,
+        "D" => PlanDir::Down,
+        "L" => PlanDir::Left,
+        "R" => PlanDir::Right,
         _ => panic!("Bad direction"),
     };
 
@@ -222,20 +199,23 @@ fn input_transform1(line: String) -> PlanStep {
     PlanStep { dir, amount }
 }
 
+/// Transform for part 2
 fn input_transform2(line: String) -> PlanStep {
     let code = line.split('#').nth(1).unwrap().trim_end_matches(')');
 
     let amount = u64::from_str_radix(&code[0..5], 16).unwrap();
     let dir = match &code[5..6] {
-        "3" => Dir::Up,
-        "1" => Dir::Down,
-        "2" => Dir::Left,
-        "0" => Dir::Right,
+        "3" => PlanDir::Up,
+        "1" => PlanDir::Down,
+        "2" => PlanDir::Left,
+        "0" => PlanDir::Right,
         _ => panic!("Bad direction"),
     };
 
     PlanStep { dir, amount }
 }
+
+// Tests
 
 #[cfg(test)]
 mod tests {

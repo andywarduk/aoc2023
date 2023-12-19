@@ -19,56 +19,52 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn part1(rules_map: &HashMap<String, Rules>, parts: &[Part]) -> u64 {
+fn part1(rules: &HashMap<String, Rule>, parts: &[Part]) -> u64 {
     // Iterate parts
     parts
         .iter()
         .map(|part| {
-            // Get first set of rules
-            let mut rules = rules_map.get("in").unwrap();
+            // Get first rule
+            let mut rule = rules.get("in").unwrap();
 
-            // Rules set loop
-            'outer: loop {
-                // Iterate rules in rules set
-                'inner: for rule in rules.rules.iter() {
-                    // Get action for thsi rule
-                    let action = match rule {
-                        Rule::Action(action) => Some(action),
-                        Rule::Condition(cond) => {
-                            // Get the value from the part
-                            let part_value = cond.term.get(part);
+            // Condition loop
+            loop {
+                // Iterate conditions in the rule
+                let action = rule.conditions.iter().find_map(|cond| {
+                    // Get the value from the part
+                    let part_value = cond.term.get(part);
 
-                            // Test the value
-                            if match cond.op {
-                                Op::Lt => part_value < cond.value,
-                                Op::Gt => part_value > cond.value,
-                            } {
-                                // Passed - execute condition
-                                Some(&cond.then)
-                            } else {
-                                // Failed - no action
-                                None
-                            }
-                        }
-                    };
+                    // Test the value
+                    if match cond.op {
+                        Op::Lt => part_value < cond.value,
+                        Op::Gt => part_value > cond.value,
+                    } {
+                        // Passed - execute condition
+                        Some(&cond.then)
+                    } else {
+                        None
+                    }
+                });
 
-                    // Process the action
-                    if let Some(action) = action {
-                        match action {
-                            Action::Accept => {
-                                // Accept the part
-                                break 'outer part.sum();
-                            }
-                            Action::Reject => {
-                                // Reject the part
-                                break 'outer 0;
-                            }
-                            Action::Goto(rule) => {
-                                // Go to another rule
-                                rules = rules_map.get(rule).unwrap();
-                                break 'inner;
-                            }
-                        }
+                // If no condition triggered then execute the else condition
+                let action = match action {
+                    Some(action) => action,
+                    None => &rule.otherwise,
+                };
+
+                // Process the action
+                match action {
+                    Action::Accept => {
+                        // Accept the part
+                        break part.sum();
+                    }
+                    Action::Reject => {
+                        // Reject the part
+                        break 0;
+                    }
+                    Action::Goto(rule_name) => {
+                        // Go to another rule
+                        rule = rules.get(rule_name).unwrap();
                     }
                 }
             }
@@ -76,15 +72,12 @@ fn part1(rules_map: &HashMap<String, Rules>, parts: &[Part]) -> u64 {
         .sum()
 }
 
-fn part2(rules_map: &HashMap<String, Rules>) -> u64 {
+fn part2(rules: &HashMap<String, Rule>) -> u64 {
     // Accepted part ranges
     let mut accepted = Vec::new();
 
-    // Current ranges
-    let mut ranges = Default::default();
-
     // Process the first rule set
-    process_rules(rules_map, "in", &mut ranges, &mut accepted);
+    process_rules(rules, "in", Default::default(), &mut accepted);
 
     // Sum up part combinations
     accepted.iter().map(|a| a.combinations()).sum()
@@ -112,12 +105,16 @@ impl Ranges {
             .product()
     }
 
+    /// Splits a range with a given operation
     fn split(&mut self, term: &Term, op: &Op, value: u16) -> Ranges {
+        // Clone self to split off range
         let mut split_ranges = self.clone();
 
+        // Get pointers to required ranges
         let self_range = &mut self.ranges[*term as usize];
         let split_range = &mut split_ranges.ranges[*term as usize];
 
+        // Adjust the split off range
         let (start, end) = match op {
             Op::Gt => (max(value + 1, *split_range.start()), *split_range.end()),
             Op::Lt => (*split_range.start(), min(*split_range.end(), value - 1)),
@@ -125,6 +122,7 @@ impl Ranges {
 
         *split_range = start..=end;
 
+        // Adjust this range
         let (start, end) = match op {
             Op::Lt => (max(value, *self_range.start()), *self_range.end()),
             Op::Gt => (*self_range.start(), min(*self_range.end(), value)),
@@ -132,64 +130,62 @@ impl Ranges {
 
         *self_range = start..=end;
 
+        // Return split off range
         split_ranges
-    }
-
-    fn all(&mut self) -> Ranges {
-        let cloned = self.clone();
-
-        let start = 1;
-        let end = 0;
-
-        self.ranges = vec![start..=end; 4];
-
-        cloned
     }
 }
 
 fn process_rules(
-    rules_map: &HashMap<String, Rules>,
-    rules: &str,
-    ranges: &mut Ranges,
+    rules: &HashMap<String, Rule>,
+    rule: &str,
+    mut ranges: Ranges,
     accepted: &mut Vec<Ranges>,
 ) {
-    let rules = rules_map.get(rules).unwrap();
+    // Get the rule from the rule map
+    let rule = rules.get(rule).unwrap();
 
-    rules
-        .rules
+    // Process each condition recursively
+    rule.conditions
         .iter()
-        .for_each(|rule| process_rule(rules_map, rule, ranges, accepted));
+        .for_each(|rule| process_rule(rules, rule, &mut ranges, accepted));
+
+    // Process the else action
+    process_action(rules, &rule.otherwise, ranges, accepted);
 }
 
 fn process_rule(
-    rules_map: &HashMap<String, Rules>,
-    rule: &Rule,
+    rules: &HashMap<String, Rule>,
+    cond: &Condition,
     ranges: &mut Ranges,
     accepted: &mut Vec<Ranges>,
 ) {
-    let (mut this_ranges, action) = match rule {
-        Rule::Condition(cond) => (ranges.split(&cond.term, &cond.op, cond.value), &cond.then),
-        Rule::Action(action) => (ranges.all(), action),
-    };
+    // Split the ranges according to this operation
+    let this_ranges = ranges.split(&cond.term, &cond.op, cond.value);
 
+    // Process the action with the split off range
+    process_action(rules, &cond.then, this_ranges, accepted);
+}
+
+fn process_action(
+    rules: &HashMap<String, Rule>,
+    action: &Action,
+    ranges: Ranges,
+    accepted: &mut Vec<Ranges>,
+) {
+    // Process the action
     match action {
-        Action::Accept => accepted.push(this_ranges),
+        Action::Accept => accepted.push(ranges),
         Action::Reject => (),
-        Action::Goto(rules) => process_rules(rules_map, rules, &mut this_ranges, accepted),
+        Action::Goto(rule_name) => process_rules(rules, rule_name, ranges, accepted),
     }
 }
 
 // Input parsing
 
 #[derive(Debug)]
-struct Rules {
-    rules: Vec<Rule>,
-}
-
-#[derive(Debug)]
-enum Rule {
-    Condition(Condition),
-    Action(Action),
+struct Rule {
+    conditions: Vec<Condition>,
+    otherwise: Action,
 }
 
 #[derive(Debug)]
@@ -258,13 +254,11 @@ impl Part {
     }
 }
 
-type InputEnt = String;
-
-fn input_transform(line: String) -> InputEnt {
+fn input_transform(line: String) -> String {
     line
 }
 
-fn parse_input(lines: &[String]) -> (HashMap<String, Rules>, Vec<Part>) {
+fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
     let mut rules = HashMap::new();
     let mut parts = Vec::new();
 
@@ -296,9 +290,9 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rules>, Vec<Part>) {
             let name = split1.next().unwrap();
             let condition_str = split1.next().unwrap().trim_end_matches('}');
 
-            let rules_vec = condition_str
-                .split(',')
-                .map(|rule_str| {
+            let (conditions, otherwise) = condition_str.split(',').fold(
+                (Vec::new(), None),
+                |(mut conditions, mut otherwise), rule_str| {
                     if rule_str.contains(':') {
                         let mut split2 = rule_str.split(':');
 
@@ -316,19 +310,27 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rules>, Vec<Part>) {
 
                         let then = split2.next().map(Action::new).unwrap();
 
-                        Rule::Condition(Condition {
+                        conditions.push(Condition {
                             term,
                             op,
                             value,
                             then,
                         })
                     } else {
-                        Rule::Action(Action::new(rule_str))
+                        otherwise = Some(Action::new(rule_str));
                     }
-                })
-                .collect::<Vec<_>>();
 
-            rules.insert(name.to_string(), Rules { rules: rules_vec });
+                    (conditions, otherwise)
+                },
+            );
+
+            rules.insert(
+                name.to_string(),
+                Rule {
+                    conditions,
+                    otherwise: otherwise.unwrap(),
+                },
+            );
         }
     }
 
@@ -366,9 +368,6 @@ hdj{m>838:A,pv}
         let (rules, parts) = parse_input(&input);
 
         assert_eq!(part1(&rules, &parts), 19114);
-        // 115,264,000,000,000
-        // 167,409,079,868,000
-        // 400,000,000,000,000
         assert_eq!(part2(&rules), 167409079868000);
     }
 }

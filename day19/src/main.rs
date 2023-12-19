@@ -20,34 +20,51 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn part1(rules_map: &HashMap<String, Rules>, parts: &[Part]) -> u64 {
+    // Iterate parts
     parts
         .iter()
         .map(|part| {
+            // Get first set of rules
             let mut rules = rules_map.get("in").unwrap();
 
+            // Rules set loop
             'outer: loop {
+                // Iterate rules in rules set
                 'inner: for rule in rules.rules.iter() {
+                    // Get action for thsi rule
                     let action = match rule {
                         Rule::Action(action) => Some(action),
                         Rule::Condition(cond) => {
+                            // Get the value from the part
                             let part_value = cond.term.get(part);
 
+                            // Test the value
                             if match cond.op {
                                 Op::Lt => part_value < cond.value,
                                 Op::Gt => part_value > cond.value,
                             } {
+                                // Passed - execute condition
                                 Some(&cond.then)
                             } else {
+                                // Failed - no action
                                 None
                             }
                         }
                     };
 
+                    // Process the action
                     if let Some(action) = action {
                         match action {
-                            Action::Accept => break 'outer part.sum(),
-                            Action::Reject => break 'outer 0,
+                            Action::Accept => {
+                                // Accept the part
+                                break 'outer part.sum();
+                            }
+                            Action::Reject => {
+                                // Reject the part
+                                break 'outer 0;
+                            }
                             Action::Goto(rule) => {
+                                // Go to another rule
                                 rules = rules_map.get(rule).unwrap();
                                 break 'inner;
                             }
@@ -60,68 +77,46 @@ fn part1(rules_map: &HashMap<String, Rules>, parts: &[Part]) -> u64 {
 }
 
 fn part2(rules_map: &HashMap<String, Rules>) -> u64 {
+    // Accepted part ranges
     let mut accepted = Vec::new();
 
+    // Current ranges
     let mut ranges = Default::default();
 
-    process_rules(rules_map, "in", &mut ranges, &mut accepted, Vec::new());
+    // Process the first rule set
+    process_rules(rules_map, "in", &mut ranges, &mut accepted);
 
-    //    println!("{accepted:?}");
-
-    accepted
-        .iter()
-        .map(|a| {
-            a.x_range.clone().count()
-                * a.m_range.clone().count()
-                * a.a_range.clone().count()
-                * a.s_range.clone().count()
-        })
-        .sum::<usize>() as u64
+    // Sum up part combinations
+    accepted.iter().map(|a| a.combinations()).sum()
 }
 
 #[derive(Debug, Clone)]
 struct Ranges {
-    x_range: RangeInclusive<u16>,
-    m_range: RangeInclusive<u16>,
-    a_range: RangeInclusive<u16>,
-    s_range: RangeInclusive<u16>,
+    ranges: Vec<RangeInclusive<u16>>,
 }
 
 impl Default for Ranges {
     fn default() -> Self {
         Self {
-            x_range: 1..=4000,
-            m_range: 1..=4000,
-            a_range: 1..=4000,
-            s_range: 1..=4000,
+            ranges: vec![1..=4000; 4],
         }
     }
 }
 
 impl Ranges {
-    fn sum(&self) -> u64 {
-        Self::range_sum(&self.x_range)
-            + Self::range_sum(&self.m_range)
-            + Self::range_sum(&self.a_range)
-            + Self::range_sum(&self.s_range)
+    /// Return the number of part combinations for this set of ranges
+    fn combinations(&self) -> u64 {
+        self.ranges
+            .iter()
+            .map(|r| r.clone().count() as u64)
+            .product()
     }
 
     fn split(&mut self, term: &Term, op: &Op, value: u16) -> Ranges {
         let mut split_ranges = self.clone();
 
-        let self_range = match term {
-            Term::X => &mut self.x_range,
-            Term::M => &mut self.m_range,
-            Term::A => &mut self.a_range,
-            Term::S => &mut self.s_range,
-        };
-
-        let split_range = match term {
-            Term::X => &mut split_ranges.x_range,
-            Term::M => &mut split_ranges.m_range,
-            Term::A => &mut split_ranges.a_range,
-            Term::S => &mut split_ranges.s_range,
-        };
+        let self_range = &mut self.ranges[*term as usize];
+        let split_range = &mut split_ranges.ranges[*term as usize];
 
         let (start, end) = match op {
             Op::Gt => (max(value + 1, *split_range.start()), *split_range.end()),
@@ -145,58 +140,25 @@ impl Ranges {
 
         let start = 1;
         let end = 0;
-        self.x_range = start..=end;
-        self.m_range = start..=end;
-        self.a_range = start..=end;
-        self.s_range = start..=end;
+
+        self.ranges = vec![start..=end; 4];
 
         cloned
-    }
-
-    fn adjust(&mut self, term: &Term, op: &Op, value: u16) -> bool {
-        let range = match term {
-            Term::X => &mut self.x_range,
-            Term::M => &mut self.m_range,
-            Term::A => &mut self.a_range,
-            Term::S => &mut self.s_range,
-        };
-
-        let (start, end) = match op {
-            Op::Gt => (max(value + 1, *range.start()), *range.end()),
-            Op::Lt => (*range.start(), min(*range.end(), value - 1)),
-        };
-
-        if start <= end {
-            *range = start..=end;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn range_sum(range: &RangeInclusive<u16>) -> u64 {
-        let a = *range.start() as u64;
-        let b = *range.end() as u64;
-
-        ((a + b) * (b - a + 1)) / 2
     }
 }
 
 fn process_rules(
     rules_map: &HashMap<String, Rules>,
-    rule: &str,
+    rules: &str,
     ranges: &mut Ranges,
     accepted: &mut Vec<Ranges>,
-    mut path: Vec<String>,
 ) {
-    path.push(format!("rule {}", rule));
-
-    let rules = rules_map.get(rule).unwrap();
+    let rules = rules_map.get(rules).unwrap();
 
     rules
         .rules
         .iter()
-        .for_each(|rule| process_rule(rules_map, rule, ranges, accepted, path.clone()));
+        .for_each(|rule| process_rule(rules_map, rule, ranges, accepted));
 }
 
 fn process_rule(
@@ -204,29 +166,16 @@ fn process_rule(
     rule: &Rule,
     ranges: &mut Ranges,
     accepted: &mut Vec<Ranges>,
-    mut path: Vec<String>,
 ) {
     let (mut this_ranges, action) = match rule {
-        Rule::Condition(cond) => {
-            let action = &cond.then;
-
-            path.push(format!("{:?} {:?} {}", cond.term, cond.op, cond.value));
-
-            let this_ranges = ranges.split(&cond.term, &cond.op, cond.value);
-
-            (this_ranges, action)
-        }
+        Rule::Condition(cond) => (ranges.split(&cond.term, &cond.op, cond.value), &cond.then),
         Rule::Action(action) => (ranges.all(), action),
     };
 
     match action {
-        Action::Accept => {
-            println!("Accept {:?} via {:?}", this_ranges, path);
-
-            accepted.push(this_ranges)
-        }
+        Action::Accept => accepted.push(this_ranges),
         Action::Reject => (),
-        Action::Goto(rules) => process_rules(rules_map, rules, &mut this_ranges, accepted, path),
+        Action::Goto(rules) => process_rules(rules_map, rules, &mut this_ranges, accepted),
     }
 }
 
@@ -251,9 +200,9 @@ struct Condition {
     then: Action,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Term {
-    X,
+    X = 0,
     M,
     A,
     S,
@@ -271,12 +220,7 @@ impl Term {
     }
 
     fn get(&self, part: &Part) -> u16 {
-        match self {
-            Term::X => part.x,
-            Term::M => part.m,
-            Term::A => part.a,
-            Term::S => part.s,
-        }
+        part.values[*self as usize]
     }
 }
 
@@ -305,15 +249,12 @@ impl Action {
 
 #[derive(Debug, Default)]
 struct Part {
-    x: u16,
-    m: u16,
-    a: u16,
-    s: u16,
+    values: [u16; 4],
 }
 
 impl Part {
     fn sum(&self) -> u64 {
-        self.x as u64 + self.m as u64 + self.a as u64 + self.s as u64
+        self.values.iter().map(|v| *v as u64).sum()
     }
 }
 
@@ -340,16 +281,10 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rules>, Vec<Part>) {
             {
                 let mut split = attr.split('=');
 
-                let term = split.next().unwrap();
+                let term = Term::new(split.next().unwrap());
                 let value = split.next().unwrap().parse::<u16>().unwrap();
 
-                match term {
-                    "x" => part.x = value,
-                    "m" => part.m = value,
-                    "a" => part.a = value,
-                    "s" => part.s = value,
-                    term => panic!("Invalid term {term}"),
-                }
+                part.values[term as usize] = value;
             }
 
             parts.push(part);
@@ -435,14 +370,5 @@ hdj{m>838:A,pv}
         // 167,409,079,868,000
         // 400,000,000,000,000
         assert_eq!(part2(&rules), 167409079868000);
-    }
-
-    #[test]
-    fn range_sum_test() {
-        let range = 1..=5;
-        assert_eq!(Ranges::range_sum(&range), 15);
-
-        let range = 2..=5;
-        assert_eq!(Ranges::range_sum(&range), 14);
     }
 }

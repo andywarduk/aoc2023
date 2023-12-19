@@ -1,9 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-    error::Error,
-    ops::RangeInclusive,
-};
+use std::{collections::HashMap, error::Error, ops::RangeInclusive};
 
 use aoc::input::parse_input_vec;
 
@@ -25,7 +20,7 @@ fn part1(rules: &HashMap<String, Rule>, parts: &[Part]) -> u64 {
         .iter()
         .map(|part| {
             // Get first rule
-            let mut rule = rules.get("in").unwrap();
+            let mut rule = rules.get("in").expect("'in' rule not found");
 
             // Condition loop
             loop {
@@ -64,7 +59,9 @@ fn part1(rules: &HashMap<String, Rule>, parts: &[Part]) -> u64 {
                     }
                     Action::Goto(rule_name) => {
                         // Go to another rule
-                        rule = rules.get(rule_name).unwrap();
+                        rule = rules
+                            .get(rule_name)
+                            .unwrap_or_else(|| panic!("Rule '{rule_name}' not found"));
                     }
                 }
             }
@@ -77,12 +74,13 @@ fn part2(rules: &HashMap<String, Rule>) -> u64 {
     let mut accepted = Vec::new();
 
     // Process the first rule set
-    process_rules(rules, "in", Default::default(), &mut accepted);
+    process_rule(rules, "in", Default::default(), &mut accepted);
 
     // Sum up part combinations
     accepted.iter().map(|a| a.combinations()).sum()
 }
 
+/// Ranges for each attribute
 #[derive(Debug, Clone)]
 struct Ranges {
     ranges: Vec<RangeInclusive<u16>>,
@@ -107,53 +105,53 @@ impl Ranges {
 
     /// Splits a range with a given operation
     fn split(&mut self, term: &Term, op: &Op, value: u16) -> Ranges {
-        // Clone self to split off range
-        let mut split_ranges = self.clone();
-
-        // Get pointers to required ranges
+        // Get pointer to required range
         let self_range = &mut self.ranges[*term as usize];
-        let split_range = &mut split_ranges.ranges[*term as usize];
 
-        // Adjust the split off range
-        let (start, end) = match op {
-            Op::Gt => (max(value + 1, *split_range.start()), *split_range.end()),
-            Op::Lt => (*split_range.start(), min(*split_range.end(), value - 1)),
+        // Get range start and end
+        let (start, end) = (*self_range.start(), *self_range.end());
+
+        // Split the range according to operator
+        let (split1, split2) = match op {
+            Op::Gt => ((start..=value), (value + 1..=end)),
+            Op::Lt => ((value..=end), (start..=(value - 1))),
         };
 
-        *split_range = start..=end;
+        // Update ranges
+        *self_range = split1;
 
-        // Adjust this range
-        let (start, end) = match op {
-            Op::Lt => (max(value, *self_range.start()), *self_range.end()),
-            Op::Gt => (*self_range.start(), min(*self_range.end(), value)),
-        };
+        // Clone self and set split off range
+        let mut split_ranges = self.clone();
+        split_ranges.ranges[*term as usize] = split2;
 
-        *self_range = start..=end;
-
-        // Return split off range
+        // Return split
         split_ranges
     }
 }
 
-fn process_rules(
+/// Process a rule
+fn process_rule(
     rules: &HashMap<String, Rule>,
-    rule: &str,
+    rule_name: &str,
     mut ranges: Ranges,
     accepted: &mut Vec<Ranges>,
 ) {
     // Get the rule from the rule map
-    let rule = rules.get(rule).unwrap();
+    let rule = rules
+        .get(rule_name)
+        .unwrap_or_else(|| panic!("Rule '{rule_name}' not found"));
 
     // Process each condition recursively
     rule.conditions
         .iter()
-        .for_each(|rule| process_rule(rules, rule, &mut ranges, accepted));
+        .for_each(|rule| process_condition(rules, rule, &mut ranges, accepted));
 
     // Process the else action
     process_action(rules, &rule.otherwise, ranges, accepted);
 }
 
-fn process_rule(
+/// Process a comdition
+fn process_condition(
     rules: &HashMap<String, Rule>,
     cond: &Condition,
     ranges: &mut Ranges,
@@ -166,28 +164,30 @@ fn process_rule(
     process_action(rules, &cond.then, this_ranges, accepted);
 }
 
+/// Process an action
 fn process_action(
     rules: &HashMap<String, Rule>,
     action: &Action,
     ranges: Ranges,
     accepted: &mut Vec<Ranges>,
 ) {
-    // Process the action
     match action {
         Action::Accept => accepted.push(ranges),
         Action::Reject => (),
-        Action::Goto(rule_name) => process_rules(rules, rule_name, ranges, accepted),
+        Action::Goto(rule_name) => process_rule(rules, rule_name, ranges, accepted),
     }
 }
 
 // Input parsing
 
+/// Rule with conditions and else clause
 #[derive(Debug)]
 struct Rule {
     conditions: Vec<Condition>,
     otherwise: Action,
 }
 
+/// Condition with test and action if true
 #[derive(Debug)]
 struct Condition {
     term: Term,
@@ -196,6 +196,7 @@ struct Condition {
     then: Action,
 }
 
+/// Product terms
 #[derive(Debug, Clone, Copy)]
 enum Term {
     X = 0,
@@ -205,6 +206,7 @@ enum Term {
 }
 
 impl Term {
+    /// Create product term from string
     fn new(string: &str) -> Self {
         match string {
             "x" => Term::X,
@@ -215,17 +217,31 @@ impl Term {
         }
     }
 
+    /// Gets the term value from a product
     fn get(&self, part: &Part) -> u16 {
         part.values[*self as usize]
     }
 }
 
+/// Test operators
 #[derive(Debug)]
 enum Op {
     Gt,
     Lt,
 }
 
+impl Op {
+    /// Create operator from string
+    fn new(op: &str) -> Self {
+        match op {
+            "<" => Op::Lt,
+            ">" => Op::Gt,
+            op => panic!("Invalid operator {op}"),
+        }
+    }
+}
+
+/// Actions
 #[derive(Debug)]
 enum Action {
     Accept,
@@ -234,6 +250,7 @@ enum Action {
 }
 
 impl Action {
+    /// Create new action from a string
     fn new(string: &str) -> Self {
         match string {
             "A" => Action::Accept,
@@ -243,12 +260,14 @@ impl Action {
     }
 }
 
+/// Part with terms indexed by Term
 #[derive(Debug, Default)]
 struct Part {
     values: [u16; 4],
 }
 
 impl Part {
+    /// Sums a product terms
     fn sum(&self) -> u64 {
         self.values.iter().map(|v| *v as u64).sum()
     }
@@ -258,6 +277,7 @@ fn input_transform(line: String) -> String {
     line
 }
 
+/// Parses input lines to rule hash map and product vector
 fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
     let mut rules = HashMap::new();
     let mut parts = Vec::new();
@@ -266,6 +286,7 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
 
     for line in lines {
         if in_parts {
+            // In parts section
             let mut part = Part::default();
 
             for attr in line
@@ -275,40 +296,45 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
             {
                 let mut split = attr.split('=');
 
-                let term = Term::new(split.next().unwrap());
-                let value = split.next().unwrap().parse::<u16>().unwrap();
+                let term = Term::new(split.next().expect("term not found"));
+                let value = split
+                    .next()
+                    .expect("Part value not found")
+                    .parse::<u16>()
+                    .expect("Part value does not parse");
 
                 part.values[term as usize] = value;
             }
 
             parts.push(part);
         } else if line.is_empty() {
+            // Move to parts section
             in_parts = true;
         } else {
+            // In Rules
             let mut split1 = line.split('{');
 
-            let name = split1.next().unwrap();
-            let condition_str = split1.next().unwrap().trim_end_matches('}');
+            let name = split1.next().expect("Name not found");
+            let condition_str = split1
+                .next()
+                .expect("Condition clause not found")
+                .trim_end_matches('}');
 
             let (conditions, otherwise) = condition_str.split(',').fold(
                 (Vec::new(), None),
                 |(mut conditions, mut otherwise), rule_str| {
                     if rule_str.contains(':') {
+                        // Condition
                         let mut split2 = rule_str.split(':');
-
-                        let cond_str = split2.next().unwrap();
+                        let cond_str = split2.next().expect("Condition not found");
 
                         let term = Term::new(&cond_str[0..1]);
+                        let op = Op::new(&cond_str[1..2]);
+                        let value = cond_str[2..]
+                            .parse::<u16>()
+                            .expect("Condition value does not parse");
 
-                        let op = match &cond_str[1..2] {
-                            "<" => Op::Lt,
-                            ">" => Op::Gt,
-                            op => panic!("Invalid operator {op}"),
-                        };
-
-                        let value = cond_str[2..].parse::<u16>().unwrap();
-
-                        let then = split2.next().map(Action::new).unwrap();
+                        let then = split2.next().map(Action::new).expect("Action not found");
 
                         conditions.push(Condition {
                             term,
@@ -317,6 +343,7 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
                             then,
                         })
                     } else {
+                        // Else clause
                         otherwise = Some(Action::new(rule_str));
                     }
 
@@ -328,7 +355,7 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
                 name.to_string(),
                 Rule {
                     conditions,
-                    otherwise: otherwise.unwrap(),
+                    otherwise: otherwise.expect("No condition else found"),
                 },
             );
         }

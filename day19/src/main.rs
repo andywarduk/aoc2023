@@ -144,7 +144,7 @@ fn process_rule(
     // Process each condition recursively
     rule.conditions
         .iter()
-        .for_each(|rule| process_condition(rules, rule, &mut ranges, accepted));
+        .for_each(|cond| process_condition(rules, cond, &mut ranges, accepted));
 
     // Process the else action
     process_action(rules, &rule.otherwise, ranges, accepted);
@@ -322,10 +322,10 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
 
             let (conditions, otherwise) = condition_str.split(',').fold(
                 (Vec::new(), None),
-                |(mut conditions, mut otherwise), rule_str| {
-                    if rule_str.contains(':') {
+                |(mut conditions, mut otherwise), cond_clause| {
+                    if cond_clause.contains(':') {
                         // Condition
-                        let mut split2 = rule_str.split(':');
+                        let mut split2 = cond_clause.split(':');
                         let cond_str = split2.next().expect("Condition not found");
 
                         let term = Term::new(&cond_str[0..1]);
@@ -344,7 +344,7 @@ fn parse_input(lines: &[String]) -> (HashMap<String, Rule>, Vec<Part>) {
                         })
                     } else {
                         // Else clause
-                        otherwise = Some(Action::new(rule_str));
+                        otherwise = Some(Action::new(cond_clause));
                     }
 
                     (conditions, otherwise)

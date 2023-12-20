@@ -1,0 +1,172 @@
+digraph {
+kv [label="kv\nFlipFlop"]
+dd [label="dd\nFlipFlop"]
+vq [label="vq\nFlipFlop"]
+hx [label="hx\nFlipFlop"]
+hr [label="hr\nConjunction"]
+fj [label="fj\nFlipFlop"]
+fd [label="fd\nFlipFlop"]
+bn [label="bn\nFlipFlop"]
+tf [label="tf\nFlipFlop"]
+vm [label="vm\nFlipFlop"]
+jh [label="jh\nFlipFlop"]
+lg [label="lg\nFlipFlop"]
+ql [label="ql\nFlipFlop"]
+bm [label="bm\nFlipFlop"]
+jd [label="jd\nFlipFlop"]
+xr [label="xr\nFlipFlop"]
+kj [label="kj\nFlipFlop"]
+cm [label="cm\nFlipFlop"]
+fh [label="fh\nConjunction"]
+gk [label="gk\nConjunction"]
+fn [label="fn\nConjunction"]
+sp [label="sp\nFlipFlop"]
+jk [label="jk\nFlipFlop"]
+lk [label="lk\nConjunction"]
+broadcaster [label="broadcaster\nBroadcaster"]
+mp [label="mp\nFlipFlop"]
+fl [label="fl\nFlipFlop"]
+zg [label="zg\nFlipFlop"]
+hh [label="hh\nConjunction"]
+fp [label="fp\nFlipFlop"]
+xg [label="xg\nFlipFlop"]
+rx [label="rx\nOutput"]
+pt [label="pt\nFlipFlop"]
+hq [label="hq\nFlipFlop"]
+mz [label="mz\nFlipFlop"]
+nv [label="nv\nFlipFlop"]
+dh [label="dh\nFlipFlop"]
+ms [label="ms\nFlipFlop"]
+rj [label="rj\nFlipFlop"]
+rz [label="rz\nFlipFlop"]
+gl [label="gl\nConjunction"]
+rb [label="rb\nFlipFlop"]
+gr [label="gr\nFlipFlop"]
+cc [label="cc\nFlipFlop"]
+cb [label="cb\nFlipFlop"]
+ls [label="ls\nFlipFlop"]
+kd [label="kd\nFlipFlop"]
+nc [label="nc\nConjunction"]
+dg [label="dg\nFlipFlop"]
+tp [label="tp\nFlipFlop"]
+nr [label="nr\nConjunction"]
+mj [label="mj\nFlipFlop"]
+xn [label="xn\nFlipFlop"]
+nm [label="nm\nFlipFlop"]
+xl [label="xl\nFlipFlop"]
+button [label="button\nButton"]
+xc [label="xc\nFlipFlop"]
+df [label="df\nFlipFlop"]
+cf [label="cf\nFlipFlop"]
+qq [label="qq\nFlipFlop"]
+ls -> gl
+rz -> vm
+rz -> gl
+broadcaster -> rz
+broadcaster -> fp
+broadcaster -> kv
+broadcaster -> fd
+ql -> bn
+bm -> hr
+bm -> fj
+fp -> cc
+fp -> gk
+lk -> nc
+xg -> gl
+xg -> mz
+dg -> gk
+dg -> mp
+zg -> ls
+zg -> gl
+lg -> hr
+pt -> lg
+pt -> hr
+sp -> mj
+ms -> gl
+ms -> hx
+kj -> fl
+kj -> gk
+bn -> rj
+bn -> gk
+xc -> vq
+fl -> gk
+dh -> hr
+dh -> nm
+jk -> gk
+jk -> dg
+tf -> cb
+kd -> cm
+kd -> nr
+hr -> hh
+hr -> kv
+hr -> xl
+hr -> qq
+kv -> xr
+kv -> hr
+hq -> ql
+fn -> nc
+vm -> gl
+vm -> xn
+jh -> nr
+jh -> kd
+mz -> dd
+tp -> hq
+cf -> nr
+gr -> jh
+jd -> hr
+jd -> bm
+xr -> qq
+xr -> hr
+cm -> nr
+cm -> cf
+fh -> nc
+rb -> xl
+rb -> hr
+nc -> rx
+mp -> gk
+mp -> kj
+nr -> fd
+nr -> gr
+nr -> fn
+nr -> cb
+nr -> tf
+nr -> xc
+nr -> vq
+gl -> fh
+gl -> xn
+gl -> sp
+gl -> mz
+gl -> rz
+gl -> mj
+gl -> dd
+rj -> jk
+hh -> nc
+fd -> nr
+fd -> df
+gk -> lk
+gk -> tp
+gk -> fp
+gk -> ql
+gk -> hq
+gk -> rj
+fj -> pt
+fj -> hr
+qq -> dh
+df -> nr
+df -> nv
+mj -> ms
+xn -> xg
+cc -> gk
+cc -> tp
+nm -> rb
+nm -> hr
+dd -> sp
+vq -> gr
+cb -> xc
+nv -> tf
+nv -> nr
+xl -> jd
+hx -> gl
+hx -> zg
+button -> broadcaster
+}

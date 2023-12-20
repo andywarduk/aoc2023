@@ -108,7 +108,9 @@ fn input_transform(line: String) -> InputEnt {
     line
 }
 
-fn parse_input(input: &[String]) -> (Vec<(String, Component)>, Vec<(String, String)>) {
+type CompConn = (Vec<(String, Component)>, Vec<(String, String)>);
+
+fn parse_input(input: &[String]) -> CompConn {
     let mut components = Vec::new();
     let mut connections = Vec::new();
 

@@ -1,64 +1,72 @@
 digraph {
-kv [label="kv\nFlipFlop"]
-dd [label="dd\nFlipFlop"]
-vq [label="vq\nFlipFlop"]
-hx [label="hx\nFlipFlop"]
-hr [label="hr\nConjunction"]
-fj [label="fj\nFlipFlop"]
-fd [label="fd\nFlipFlop"]
-bn [label="bn\nFlipFlop"]
-tf [label="tf\nFlipFlop"]
-vm [label="vm\nFlipFlop"]
-jh [label="jh\nFlipFlop"]
-lg [label="lg\nFlipFlop"]
-ql [label="ql\nFlipFlop"]
-bm [label="bm\nFlipFlop"]
-jd [label="jd\nFlipFlop"]
-xr [label="xr\nFlipFlop"]
-kj [label="kj\nFlipFlop"]
-cm [label="cm\nFlipFlop"]
-fh [label="fh\nConjunction"]
-gk [label="gk\nConjunction"]
-fn [label="fn\nConjunction"]
-sp [label="sp\nFlipFlop"]
-jk [label="jk\nFlipFlop"]
-lk [label="lk\nConjunction"]
-broadcaster [label="broadcaster\nBroadcaster"]
-mp [label="mp\nFlipFlop"]
-fl [label="fl\nFlipFlop"]
-zg [label="zg\nFlipFlop"]
-hh [label="hh\nConjunction"]
-fp [label="fp\nFlipFlop"]
-xg [label="xg\nFlipFlop"]
-rx [label="rx\nOutput"]
-pt [label="pt\nFlipFlop"]
-hq [label="hq\nFlipFlop"]
-mz [label="mz\nFlipFlop"]
-nv [label="nv\nFlipFlop"]
-dh [label="dh\nFlipFlop"]
-ms [label="ms\nFlipFlop"]
-rj [label="rj\nFlipFlop"]
-rz [label="rz\nFlipFlop"]
-gl [label="gl\nConjunction"]
-rb [label="rb\nFlipFlop"]
-gr [label="gr\nFlipFlop"]
-cc [label="cc\nFlipFlop"]
-cb [label="cb\nFlipFlop"]
-ls [label="ls\nFlipFlop"]
-kd [label="kd\nFlipFlop"]
-nc [label="nc\nConjunction"]
-dg [label="dg\nFlipFlop"]
-tp [label="tp\nFlipFlop"]
-nr [label="nr\nConjunction"]
-mj [label="mj\nFlipFlop"]
-xn [label="xn\nFlipFlop"]
-nm [label="nm\nFlipFlop"]
-xl [label="xl\nFlipFlop"]
-button [label="button\nButton"]
-xc [label="xc\nFlipFlop"]
-df [label="df\nFlipFlop"]
-cf [label="cf\nFlipFlop"]
-qq [label="qq\nFlipFlop"]
+subgraph {
+button [label="button\nButton" shape="invhouse"];
+broadcaster [label="broadcaster\nBroadcaster" shape="hexagon"];
+}
+subgraph {
+ls [label="ls\nFlipFlop" shape="oval"];
+rz [label="rz\nFlipFlop" shape="oval"];
+ql [label="ql\nFlipFlop" shape="oval"];
+bm [label="bm\nFlipFlop" shape="oval"];
+fp [label="fp\nFlipFlop" shape="oval"];
+xg [label="xg\nFlipFlop" shape="oval"];
+dg [label="dg\nFlipFlop" shape="oval"];
+zg [label="zg\nFlipFlop" shape="oval"];
+lg [label="lg\nFlipFlop" shape="oval"];
+pt [label="pt\nFlipFlop" shape="oval"];
+sp [label="sp\nFlipFlop" shape="oval"];
+ms [label="ms\nFlipFlop" shape="oval"];
+kj [label="kj\nFlipFlop" shape="oval"];
+bn [label="bn\nFlipFlop" shape="oval"];
+xc [label="xc\nFlipFlop" shape="oval"];
+fl [label="fl\nFlipFlop" shape="oval"];
+dh [label="dh\nFlipFlop" shape="oval"];
+jk [label="jk\nFlipFlop" shape="oval"];
+tf [label="tf\nFlipFlop" shape="oval"];
+kd [label="kd\nFlipFlop" shape="oval"];
+kv [label="kv\nFlipFlop" shape="oval"];
+hq [label="hq\nFlipFlop" shape="oval"];
+vm [label="vm\nFlipFlop" shape="oval"];
+jh [label="jh\nFlipFlop" shape="oval"];
+mz [label="mz\nFlipFlop" shape="oval"];
+tp [label="tp\nFlipFlop" shape="oval"];
+cf [label="cf\nFlipFlop" shape="oval"];
+gr [label="gr\nFlipFlop" shape="oval"];
+jd [label="jd\nFlipFlop" shape="oval"];
+xr [label="xr\nFlipFlop" shape="oval"];
+cm [label="cm\nFlipFlop" shape="oval"];
+rb [label="rb\nFlipFlop" shape="oval"];
+mp [label="mp\nFlipFlop" shape="oval"];
+rj [label="rj\nFlipFlop" shape="oval"];
+fd [label="fd\nFlipFlop" shape="oval"];
+fj [label="fj\nFlipFlop" shape="oval"];
+qq [label="qq\nFlipFlop" shape="oval"];
+df [label="df\nFlipFlop" shape="oval"];
+mj [label="mj\nFlipFlop" shape="oval"];
+xn [label="xn\nFlipFlop" shape="oval"];
+cc [label="cc\nFlipFlop" shape="oval"];
+nm [label="nm\nFlipFlop" shape="oval"];
+dd [label="dd\nFlipFlop" shape="oval"];
+vq [label="vq\nFlipFlop" shape="oval"];
+cb [label="cb\nFlipFlop" shape="oval"];
+nv [label="nv\nFlipFlop" shape="oval"];
+xl [label="xl\nFlipFlop" shape="oval"];
+hx [label="hx\nFlipFlop" shape="oval"];
+}
+subgraph {
+lk [label="lk\nConjunction" shape="box"];
+hr [label="hr\nConjunction" shape="box"];
+fn [label="fn\nConjunction" shape="box"];
+fh [label="fh\nConjunction" shape="box"];
+nc [label="nc\nConjunction" shape="box"];
+nr [label="nr\nConjunction" shape="box"];
+gl [label="gl\nConjunction" shape="box"];
+hh [label="hh\nConjunction" shape="box"];
+gk [label="gk\nConjunction" shape="box"];
+}
+subgraph {
+rx [label="rx\nOutput" shape="house"];
+}
 ls -> gl
 rz -> vm
 rz -> gl

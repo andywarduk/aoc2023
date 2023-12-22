@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn part1(supports: &[Vec<usize>], supported_by: &[Vec<usize>]) -> u64 {
+fn part1(supports: &[HashSet<usize>], supported_by: &[HashSet<usize>]) -> u64 {
     // Count bricks which can be removed
     supports.iter().enumerate().fold(0, |count, (i, supports)| {
         for s in supports {
@@ -33,13 +33,15 @@ fn part1(supports: &[Vec<usize>], supported_by: &[Vec<usize>]) -> u64 {
     })
 }
 
-fn part2(supports: &[Vec<usize>], supported_by: &[Vec<usize>]) -> u64 {
+fn part2(supports: &[HashSet<usize>], supported_by: &[HashSet<usize>]) -> u64 {
     let mut count = 0;
 
     for i in 0..supports.len() {
+        // Start fallers hash set
         let mut fallers = HashSet::new();
         fallers.insert(i);
 
+        // Recursively check supported bricks
         p2rec(i, supports, supported_by, &mut fallers);
 
         count += fallers.len() - 1;
@@ -50,17 +52,18 @@ fn part2(supports: &[Vec<usize>], supported_by: &[Vec<usize>]) -> u64 {
 
 fn p2rec(
     i: usize,
-    supports: &[Vec<usize>],
-    supported_by: &[Vec<usize>],
+    supports: &[HashSet<usize>],
+    supported_by: &[HashSet<usize>],
     fallers: &mut HashSet<usize>,
 ) {
-    //    println!("{i} supports {:?}", supports[i]);
-
+    // Loop supported bricks
     for s in supports[i].iter() {
-        // println!("  {} supported by {:?}", *s, supported_by[*s]);
-
-        if supported_by[*s].iter().all(|b| fallers.contains(b)) {
+        // Are the bricks supporting this brick all falling?
+        if supported_by[*s].is_subset(fallers) {
+            // Yes - this one is falling too
             fallers.insert(*s);
+
+            // Recurse
             p2rec(*s, supports, supported_by, fallers);
         }
     }
@@ -127,10 +130,10 @@ fn compress(bricks: &mut [Brick]) -> HashMap<(u16, u16, u16), usize> {
 fn supports(
     bricks: &[Brick],
     map: &HashMap<(u16, u16, u16), usize>,
-) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
+) -> (Vec<HashSet<usize>>, Vec<HashSet<usize>>) {
     // Find out what supports what
-    let mut supports = vec![vec![]; bricks.len()];
-    let mut supported_by = vec![vec![]; bricks.len()];
+    let mut supports = vec![HashSet::new(); bricks.len()];
+    let mut supported_by = vec![HashSet::new(); bricks.len()];
 
     for (i, brick) in bricks.iter().enumerate() {
         let positions = brick.positions();
@@ -141,8 +144,8 @@ fn supports(
 
             if let Some(ent) = map.get(&above) {
                 if *ent != i {
-                    supports[i].push(*ent);
-                    supported_by[*ent].push(i);
+                    supports[i].insert(*ent);
+                    supported_by[*ent].insert(i);
                 }
             }
         }

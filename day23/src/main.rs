@@ -117,7 +117,6 @@ fn part2(map: &[MapRow]) -> u64 {
             move_to(x - 1, y);
 
             if moves.len() > 2 {
-                //println!("Node at {x} {y}");
                 nodes.insert((x, y));
             }
         }
@@ -135,13 +134,14 @@ fn part2(map: &[MapRow]) -> u64 {
 
         while let Some((x, y, steps, nx, ny)) = queue.pop_front() {
             if (x != nx || y != ny) && nodes.contains(&(x, y)) {
-                // On a node
-                //println!("Edge {nx} {ny} -> {x} {y} for {steps}");
+                // On a node - add edge
                 let ent = ((x, y), steps);
+
                 edges
                     .entry((nx, ny))
                     .and_modify(|e| e.push(ent))
                     .or_insert(vec![ent]);
+
                 continue;
             }
 
@@ -155,10 +155,13 @@ fn part2(map: &[MapRow]) -> u64 {
             if y > 0 {
                 move_to(x, y - 1);
             }
+
             move_to(x + 1, y);
+
             if y < map.len() - 1 {
                 move_to(x, y + 1);
             }
+
             move_to(x - 1, y);
         }
     }
@@ -198,11 +201,9 @@ fn find_longest(
             if state.visited.contains(&(x, y)) {
                 None
             } else {
-                //println!("{} {} {} -> {x} {y} {steps}", state.x, state.y, state.steps);
                 let steps = state.steps + steps;
 
                 Some(if x == ex && y == ey {
-                    //println!("Finished {steps}");
                     steps
                 } else {
                     find_longest(

@@ -76,20 +76,25 @@ fn part2(map: &[InputEnt], steps: usize) -> u64 {
     let p1 = p2solve(map, s1);
     let p2 = p2solve(map, s2);
 
-    println!("Equation 1: f(0) = 0a + 0b + c = {p0}");
+    // Solve the quadratic equation
     let c = p0;
-    println!("Equation 2: f(1) = 1a + 1b + c = {p1}");
-    println!("Equation 3: f(2) = 4a + 2b + c = {p2}");
     let f1_0 = p1 - p0;
-    println!("f(1) - f(0) => a + b = {p1} - {p0} => a + b = {}", f1_0);
     let f2_1 = p2 - p1;
-    println!("f(2) - f(1) => 3a + b = {p2} - {p1} => 3a + b = {}", f2_1);
     let a = (f2_1 - f1_0) / 2;
-    println!("(3a + b) - (a + b) = 2a = {f2_1} - {f1_0} => a = {a}");
     let b = p1 - a - c;
-    println!("a + b + c = {p1} => b = {p1} - a - c => b = {b}");
 
-    println!("Equation: {a} x^2 + {b} x + {c}, with x = {div}");
+    #[cfg(debug_assertions)]
+    {
+        println!("Equation 1: f(0) = 0a + 0b + c = {p0}");
+        println!("Equation 2: f(1) = 1a + 1b + c = {p1}");
+        println!("Equation 3: f(2) = 4a + 2b + c = {p2}");
+        println!("f(1) - f(0) => a + b = {p1} - {p0} => a + b = {}", f1_0);
+        println!("f(2) - f(1) => 3a + b = {p2} - {p1} => 3a + b = {}", f2_1);
+        println!("(3a + b) - (a + b) = 2a = {f2_1} - {f1_0} => a = {a}");
+        println!("a + b + c = {p1} => b = {p1} - a - c => b = {b}");
+
+        println!("Equation: {a} x^2 + {b} x + {c}, with x = {div}");
+    }
 
     (a * div * div + b * div + p0) as u64
 }

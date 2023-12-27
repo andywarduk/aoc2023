@@ -95,7 +95,7 @@ fn part1(map: &[MapRow], file: &str) -> Result<(), Box<dyn Error>> {
     }
 
     // Create GIF
-    create_gif(map, file, &longest)
+    create_gif(map, file, &longest, None)
 }
 
 type Edges = HashMap<Node, Vec<(Node, Vec<(usize, usize)>)>>;
@@ -189,33 +189,41 @@ fn part2(map: &[MapRow], file: &str) -> Result<(), Box<dyn Error>> {
         visited: HashSet::new(),
     };
 
-    let (_, nodes) = find_longest(state, ex, ey, &edges);
+    let (_, node_list) = find_longest(state, ex, ey, &edges);
 
     // Recreate path
-    let (_, longest) = nodes.iter().skip(1).fold(
-        ((sx, sy), vec![]),
-        |((lx, ly), mut path): ((usize, usize), Vec<(usize, usize)>), &(nx, ny)| {
-            let steps = edges
-                .get(&(lx, ly))
-                .unwrap()
-                .iter()
-                .find_map(|((x, y), steps)| {
-                    if *x == nx && *y == ny {
-                        Some(steps)
-                    } else {
-                        None
-                    }
-                })
-                .unwrap();
+    let mut longest = vec![(sx, sy)];
 
-            path.extend(steps);
+    longest.extend(
+        node_list
+            .iter()
+            .skip(1)
+            .fold(
+                ((sx, sy), vec![]),
+                |((lx, ly), mut path): ((usize, usize), Vec<(usize, usize)>), &(nx, ny)| {
+                    let steps = edges
+                        .get(&(lx, ly))
+                        .unwrap()
+                        .iter()
+                        .find_map(|((x, y), steps)| {
+                            if *x == nx && *y == ny {
+                                Some(steps)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap();
 
-            ((nx, ny), path)
-        },
+                    path.extend(steps);
+
+                    ((nx, ny), path)
+                },
+            )
+            .1,
     );
 
     // Create GIF
-    create_gif(map, file, &longest)
+    create_gif(map, file, &longest, Some(nodes))
 }
 
 type Node = (usize, usize);
@@ -297,7 +305,12 @@ enum Dir {
     W,
 }
 
-fn create_gif(map: &[MapRow], file: &str, path: &[(usize, usize)]) -> Result<(), Box<dyn Error>> {
+fn create_gif(
+    map: &[MapRow],
+    file: &str,
+    path: &[(usize, usize)],
+    nodes: Option<HashSet<(usize, usize)>>,
+) -> Result<(), Box<dyn Error>> {
     // Create GIF
     let palette: [[u8; 3]; 4] = [[0, 0, 0], [64, 255, 64], [255, 255, 64], [128, 64, 255]];
 
@@ -311,7 +324,7 @@ fn create_gif(map: &[MapRow], file: &str, path: &[(usize, usize)]) -> Result<(),
     )?;
 
     // Draw base frame
-    let mut frame = base_frame(map, &gif);
+    let mut frame = base_frame(map, &gif, nodes);
 
     gif.draw_frame(frame.clone(), 0)?;
 
@@ -338,7 +351,7 @@ fn create_gif(map: &[MapRow], file: &str, path: &[(usize, usize)]) -> Result<(),
     Ok(())
 }
 
-fn base_frame(map: &[MapRow], gif: &Gif) -> Vec<Vec<u8>> {
+fn base_frame(map: &[MapRow], gif: &Gif, nodes: Option<HashSet<(usize, usize)>>) -> Vec<Vec<u8>> {
     let mut frame = gif.empty_frame();
 
     (0..map.len()).for_each(|y| {
@@ -347,49 +360,71 @@ fn base_frame(map: &[MapRow], gif: &Gif) -> Vec<Vec<u8>> {
         for x in 0..map[y].len() {
             let gx = x * 5;
 
-            let bmp = match map[y][x] {
-                Tile::Path => [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
-                Tile::Forest => [
+            let bmp = if matches!(map[y][x], Tile::Forest) {
+                [
                     [0, 1, 1, 1, 0],
                     [1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1],
                     [0, 1, 1, 1, 0],
-                ],
-                Tile::SlopeN => [
-                    [0, 0, 0, 0, 0],
-                    [0, 0, 2, 0, 0],
-                    [0, 2, 2, 2, 0],
-                    [2, 2, 2, 2, 2],
-                    [0, 0, 0, 0, 0],
-                ],
-                Tile::SlopeW => [
-                    [0, 0, 0, 2, 0],
-                    [0, 0, 2, 2, 0],
-                    [0, 2, 2, 2, 0],
-                    [0, 0, 2, 2, 0],
-                    [0, 0, 0, 2, 0],
-                ],
-                Tile::SlopeE => [
-                    [0, 2, 0, 0, 0],
-                    [0, 2, 2, 0, 0],
-                    [0, 2, 2, 2, 0],
-                    [0, 2, 2, 0, 0],
-                    [0, 2, 0, 0, 0],
-                ],
-                Tile::SlopeS => [
-                    [0, 0, 0, 0, 0],
-                    [2, 2, 2, 2, 2],
-                    [0, 2, 2, 2, 0],
-                    [0, 0, 2, 0, 0],
-                    [0, 0, 0, 0, 0],
-                ],
+                ]
+            } else if let Some(nodes) = &nodes {
+                if nodes.contains(&(x, y)) {
+                    [
+                        [0, 0, 0, 0, 0],
+                        [0, 2, 2, 2, 0],
+                        [0, 2, 2, 2, 0],
+                        [0, 2, 2, 2, 0],
+                        [0, 0, 0, 0, 0],
+                    ]
+                } else {
+                    [
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                    ]
+                }
+            } else {
+                match map[y][x] {
+                    Tile::Path => [
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0],
+                    ],
+                    Tile::SlopeN => [
+                        [0, 0, 0, 0, 0],
+                        [0, 0, 2, 0, 0],
+                        [0, 2, 2, 2, 0],
+                        [2, 2, 2, 2, 2],
+                        [0, 0, 0, 0, 0],
+                    ],
+                    Tile::SlopeW => [
+                        [0, 0, 0, 2, 0],
+                        [0, 0, 2, 2, 0],
+                        [0, 2, 2, 2, 0],
+                        [0, 0, 2, 2, 0],
+                        [0, 0, 0, 2, 0],
+                    ],
+                    Tile::SlopeE => [
+                        [0, 2, 0, 0, 0],
+                        [0, 2, 2, 0, 0],
+                        [0, 2, 2, 2, 0],
+                        [0, 2, 2, 0, 0],
+                        [0, 2, 0, 0, 0],
+                    ],
+                    Tile::SlopeS => [
+                        [0, 0, 0, 0, 0],
+                        [2, 2, 2, 2, 2],
+                        [0, 2, 2, 2, 0],
+                        [0, 0, 2, 0, 0],
+                        [0, 0, 0, 0, 0],
+                    ],
+                    _ => unreachable!(),
+                }
             };
 
             for (y, br) in bmp.iter().enumerate() {

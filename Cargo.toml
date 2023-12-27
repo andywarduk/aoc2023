@@ -36,6 +36,7 @@ members = [
     "day21",
     "day22",
     "day23",
+    "day23vis",
     "day24",
     "day25",
     "day25vis",

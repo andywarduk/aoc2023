@@ -1,6 +1,8 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     error::Error,
+    fs::File,
+    io::Write,
 };
 
 use aoc::{
@@ -12,9 +14,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Get input
     let input = parse_input_vec(23, input_transform)?;
 
-    // Run parts
     part1(&input, "vis/day23-1.gif")?;
-    part2(&input, "vis/day23-2.gif")?;
+    part2(&input, "vis/day23-2.gif", "vis/day23-2.dot")?;
 
     Ok(())
 }
@@ -100,7 +101,7 @@ fn part1(map: &[MapRow], file: &str) -> Result<(), Box<dyn Error>> {
 
 type Edges = HashMap<Node, Vec<(Node, Vec<(usize, usize)>)>>;
 
-fn part2(map: &[MapRow], file: &str) -> Result<(), Box<dyn Error>> {
+fn part2(map: &[MapRow], gif_file: &str, dot_file: &str) -> Result<(), Box<dyn Error>> {
     // Find nodes
     let (sx, sy, ex, ey) = find_exits(map);
 
@@ -222,8 +223,99 @@ fn part2(map: &[MapRow], file: &str) -> Result<(), Box<dyn Error>> {
             .1,
     );
 
+    // Create dot file
+    write_dot(dot_file, &nodes, &edges, &node_list)?;
+
     // Create GIF
-    create_gif(map, file, &longest, Some(nodes))
+    create_gif(map, gif_file, &longest, Some(nodes))?;
+
+    Ok(())
+}
+
+fn write_dot(
+    file: &str,
+    nodes: &HashSet<(usize, usize)>,
+    edges: &Edges,
+    node_list: &[(usize, usize)],
+) -> Result<(), Box<dyn Error>> {
+    let mut file = File::create(file).unwrap();
+
+    file.write_fmt(format_args!("digraph {{\nrankdir=\"LR\";\n"))?;
+
+    // Write nodes
+    let mut nodes_vec = nodes.iter().collect::<Vec<_>>();
+
+    nodes_vec.sort_by(|(ax, ay), (bx, by)| {
+        (ax * ay)
+            .cmp(&(bx * by))
+            .then_with(|| ay.cmp(by))
+            .then_with(|| ax.cmp(bx))
+    });
+
+    for (x, y) in &nodes_vec {
+        file.write_fmt(format_args!("\"{x}x{y}\" [shape=box"))?;
+
+        if node_list.contains(&(*x, *y)) {
+            file.write_all(b" color=red")?;
+        }
+
+        file.write_all(b"];\n")?;
+    }
+
+    // Write edges
+    let mut done = HashSet::new();
+
+    for (x1, y1) in nodes_vec {
+        done.insert((x1, y1));
+
+        let edges = edges.get(&(*x1, *y1)).unwrap();
+
+        let pos1 = node_list.iter().position(|(x, y)| x == x1 && y == y1);
+
+        for ((x2, y2), steps) in edges {
+            if !done.contains(&(x2, y2)) {
+                let mut arrow_head = "none";
+                let mut arrow_tail = "none";
+                let mut on_path = false;
+
+                let pos2 = node_list.iter().position(|(x, y)| x == x2 && y == y2);
+
+                if let Some(pos1) = pos1 {
+                    if let Some(pos2) = pos2 {
+                        match pos1 as isize - pos2 as isize {
+                            -1 => {
+                                arrow_head = "normal";
+                                on_path = true;
+                            }
+                            1 => {
+                                arrow_tail = "normal";
+                                on_path = true;
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+
+                file.write_fmt(format_args!(
+                    "\"{x1}x{y1}\" -> \"{x2}x{y2}\" [label={} dir=both",
+                    steps.len()
+                ))?;
+
+                if on_path {
+                    file.write_all(b" color=red")?;
+                }
+
+                file.write_fmt(format_args!(" arrowhead={arrow_head}"))?;
+                file.write_fmt(format_args!(" arrowtail={arrow_tail}"))?;
+
+                file.write_all(b"];\n")?;
+            }
+        }
+    }
+
+    file.write_fmt(format_args!("}}\n"))?;
+
+    Ok(())
 }
 
 type Node = (usize, usize);

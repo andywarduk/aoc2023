@@ -235,7 +235,7 @@ fn draw_path(
     gif: &mut Gif,
     mut frame: Vec<Vec<u8>>,
     range_start: usize,
-    visited: &Vec<(usize, usize)>,
+    visited: &[(usize, usize)],
 ) -> Result<(), Box<dyn Error>> {
     // Draw frame
     for (i, (px, py)) in visited.iter().enumerate() {

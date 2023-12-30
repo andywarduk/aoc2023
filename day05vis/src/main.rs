@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let input = parse_input_vec(5, input_transform)?;
     let almanac = parse_lines(&input);
-    part2(&almanac, "vis/day05-2.html", 1500)?;
+    part2(&almanac, "vis/day05-2.html", 2000)?;
 
     Ok(())
 }
@@ -187,7 +187,12 @@ fn part2(almanac: &Almanac, output: &str, height: usize) -> Result<(), Box<dyn E
         }
     }
 
-    edges.sort();
+    edges.sort_by(|a, b| {
+        a.depth
+            .cmp(&b.depth)
+            .then(a.dst.start.cmp(&b.dst.start))
+            .then(a.dst.end.cmp(&b.dst.end))
+    });
 
     write_doc(nodes, edges, output, height)?;
 
@@ -209,15 +214,13 @@ fn write_doc(
 <head>
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://code.highcharts.com/modules/sankey.js"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+
     <style>
-        #container {
-            height: 2000px;
-        }
 "#
         .as_bytes(),
     )?;
 
+    // Write styles
     file.write_fmt(format_args!(
         "        #container {{
             height: {height}px;
@@ -239,16 +242,11 @@ fn write_doc(
             title: {
                 text: ''
             },
-            accessibility: {
-                point: {
-                    valueDescriptionFormat: '{index}. {point.from} to {point.to}, {point.weight}.'
-                }
-            },
             tooltip: {
                 headerFormat: null,
                 pointFormat:
-                    '{point.fromNode.name} \u2192 {point.toNode.name}: ({point.weight})',
-                nodeFormat: '{point.name} ({point.sum})'
+                    '{point.fromNode.x_from}-{point.fromNode.x_to} \u2192 {point.toNode.x_from}-{point.toNode.x_to}: ({point.weight})',
+                nodeFormat: '{point.x_from}-{point.x_to} ({point.sum})'
             },
             series: [{
                 keys: ['from', 'to', 'weight'],
@@ -262,19 +260,27 @@ fn write_doc(
         .as_bytes(),
     )?;
 
+    // Write nodes
     for (depth, nv) in nodes.iter().enumerate() {
         let mut nv = nv.to_vec();
 
-        nv.sort();
+        nv.sort_by(|a, b| {
+            a.range
+                .start
+                .cmp(&b.range.start)
+                .then(a.range.end.cmp(&b.range.end))
+        });
 
         for n in nv {
             file.write_fmt(format_args!(
                 "                    {{
                         id: '{}-{}-{}',
                         column: {},
+                        x_from: {},
+                        x_to: {},
                     }},
 ",
-                depth, n.range.start, n.range.end, depth
+                depth, n.range.start, n.range.end, depth, n.range.start, n.range.end
             ))?;
         }
     }
@@ -287,16 +293,18 @@ fn write_doc(
         .as_bytes(),
     )?;
 
+    // Write edges
     for e in edges {
+        let d1 = e.depth;
+        let d2 = d1 + 1;
+        let s1 = e.src.start;
+        let e1 = e.src.end;
+        let s2 = e.dst.start;
+        let e2 = e.dst.end;
+        let range = (e.dst.end - e.dst.start) + 1;
+
         file.write_fmt(format_args!(
-            "                    ['{}-{}-{}', '{}-{}-{}', {}],\n",
-            e.depth,
-            e.src.start,
-            e.src.end,
-            e.depth + 1,
-            e.dst.start,
-            e.dst.end,
-            (e.dst.end - e.dst.start) + 1
+            "                    ['{d1}-{s1}-{e1}', '{d2}-{s2}-{e2}', {range}],\n",
         ))?;
     }
 
@@ -356,46 +364,16 @@ impl ItemMap {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 struct Node {
     range: Range<u64>,
 }
 
-impl Ord for Node {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.range
-            .start
-            .cmp(&other.range.start)
-            .then(self.range.end.cmp(&other.range.end))
-    }
-}
-
-impl PartialOrd for Node {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 struct Edge {
     depth: usize,
     src: Range<u64>,
     dst: Range<u64>,
-}
-
-impl Ord for Edge {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.depth
-            .cmp(&other.depth)
-            .then(self.dst.start.cmp(&other.src.start))
-            .then(self.dst.end.cmp(&other.src.end))
-    }
-}
-
-impl PartialOrd for Edge {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 // Input parsing

@@ -205,6 +205,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "day05vis"
+version = "0.1.0"
+dependencies = [
+ "aoc",
+]
+
+[[package]]
 name = "day06"
 version = "0.1.0"
 dependencies = [

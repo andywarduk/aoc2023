@@ -6,9 +6,9 @@ Solutions to Advent of Code 2023 [https://adventofcode.com/2023]
 
 ### day 5 ###
 
-[day 5 example](vis/day5ex.html)
+[day 5 example](vis/day05ex.html)
 
-[day 5](vis/day5.html)
+[day 5](vis/day05-2.html)
 
 ### day 10 ###
 
